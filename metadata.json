@@ -1,0 +1,7 @@
+{
+  "name": "Cuteriaa - Premium Aesthetic Apparel",
+  "description": "A high-end e-commerce platform specializing in exclusive, aesthetic streetwear and AI-powered custom designs.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

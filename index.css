@@ -1,0 +1,242 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --bg: #080808;
+  --text: #ffffff;
+  --accent: #f27d26;
+  --text-dim: rgba(255, 255, 255, 0.6);
+  --line: rgba(255, 255, 255, 0.1);
+  --card-bg: #111111;
+  --navbar-bg: rgba(8, 8, 8, 0.8);
+  --input-bg: #0d0d0d;
+}
+
+[data-theme='light'] {
+  --bg: #f8f8f8;
+  --text: #080808;
+  --text-dim: rgba(0, 0, 0, 0.6);
+  --line: rgba(0, 0, 0, 0.1);
+  --card-bg: #ffffff;
+  --navbar-bg: rgba(248, 248, 248, 0.8);
+  --input-bg: #ffffff;
+}
+
+body {
+  background-color: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05); 
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2); 
+  border-radius: 4px;
+}
+
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3); 
+}
+
+.font-display {
+  font-family: 'Anton', sans-serif;
+  text-transform: uppercase;
+}
+
+.font-space {
+  font-family: 'Space Grotesk', sans-serif;
+}
+
+.font-outfit {
+  font-family: 'Outfit', sans-serif;
+}
+
+.grid-line-v {
+  position: relative;
+}
+
+.grid-line-v::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background-color: var(--line);
+}
+
+.grid-line-h {
+  position: relative;
+}
+
+.grid-line-h::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 1px;
+  background-color: var(--line);
+}
+
+.text-justify-none {
+  text-align: justify;
+  text-justify: none;
+}
+
+
+@media print {
+  /* Hide the root app */
+  #root {
+    display: none !important;
+  }
+  
+  body {
+    background: white !important;
+    overflow: visible !important;
+  }
+
+  /* Reset print container to be printable */
+  .print-portal-container {
+    display: block !important;
+    position: static !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .print-active-overlay {
+    position: static !important;
+    display: block !important;
+    background: transparent !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+    height: auto !important;
+    backdrop-filter: none !important;
+  }
+
+  .print-paper {
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: auto !important;
+    max-height: none !important;
+    box-shadow: none !important;
+    border: none !important;
+    border-radius: 0 !important;
+    padding: 0.5cm !important;
+    margin: 0 !important;
+    display: flex !important;
+    flex-direction: row !important;
+    flex-wrap: wrap !important;
+    gap: 1cm !important;
+    overflow: visible !important;
+    background: white !important;
+    color: black !important;
+  }
+
+  .print-main {
+    flex: 1 1 300px !important;
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+  }
+
+  .print-sidebar {
+    width: 300px !important;
+    flex: 0 0 300px !important;
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    min-height: 0 !important;
+    border-left: 1pt solid #eee !important;
+    padding-left: 1cm !important;
+  }
+
+  .print-items {
+    display: block !important;
+    overflow: visible !important;
+    height: auto !important;
+    max-height: none !important;
+  }
+
+  .no-print, nav, header, footer, aside, #live-support, button {
+    display: none !important;
+  }
+
+  /* Specific color overrides for print - keep it legible */
+  .bg-zinc-950, .bg-zinc-900, .bg-zinc-800, .bg-zinc-100 { 
+      background-color: #ffffff !important; 
+      border: 1pt solid #ddd !important; 
+      box-shadow: none !important;
+  }
+  
+  .text-white, .text-zinc-100, .text-zinc-200, .text-zinc-300, .text-zinc-900, .text-black { 
+      color: #000000 !important; 
+  }
+  
+  .text-zinc-400, .text-zinc-500, .text-zinc-600, .text-zinc-700 { 
+      color: #444444 !important; 
+  }
+  
+  .border-zinc-100, .border-zinc-800, .border-zinc-700, .border-zinc-200 { 
+      border-color: #cccccc !important; 
+  }
+
+  .print-paper h2 {
+    font-size: 32pt !important;
+    margin-bottom: 0.5cm !important;
+    color: black !important;
+  }
+  
+  .print-paper h4 {
+    font-size: 10pt !important;
+    letter-spacing: 0.2em !important;
+    color: #888 !important;
+  }
+
+  .print-paper p {
+    font-size: 11pt !important;
+  }
+
+  .print-items img {
+    max-height: 3cm !important;
+    filter: grayscale(1) !important;
+  }
+
+  /* Force print color adjust */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+}
+
+::-webkit-scrollbar {
+  width: 4px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent);
+}
