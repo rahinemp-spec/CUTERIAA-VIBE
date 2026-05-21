@@ -44,14 +44,8 @@ const Footer: React.FC<FooterProps> = ({ onAdminClick, onPolicyClick, onNavClick
         <div>
           <h3 className="opacity-20 font-display text-xs uppercase tracking-[0.3em] mb-10">Terminal</h3>
           <div className="flex gap-8 mb-10">
-            <a href="https://www.facebook.com/profile.php?id=61587693729812" target="_blank" rel="noopener noreferrer" className="opacity-20 hover:opacity-100 transition-all">
+            <a href="https://www.facebook.com/share/1CjdLeAjAN/?mibextid=wwXIfr" target="_blank" rel="noopener noreferrer" className="opacity-20 hover:opacity-100 transition-all">
               <i className="fab fa-facebook-f text-lg"></i>
-            </a>
-            <a href="https://www.instagram.com/unikatshirtss/" target="_blank" rel="noopener noreferrer" className="opacity-20 hover:opacity-100 transition-all">
-              <i className="fab fa-instagram text-lg"></i>
-            </a>
-            <a href="https://www.tiktok.com/@unika_tshirts?lang=en-GB" target="_blank" rel="noopener noreferrer" className="opacity-20 hover:opacity-100 transition-all">
-              <i className="fab fa-tiktok text-lg"></i>
             </a>
           </div>
           <div className="space-y-6">

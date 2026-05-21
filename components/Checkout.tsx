@@ -111,6 +111,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
     }
   }, [formData.district]);
 
+  const hasPrebook = items.some(item => String(item.price).toLowerCase().includes("prebook"));
+
   const subtotal = items.reduce(
     (sum, item) =>
       sum + (typeof item.price === "number" ? item.price : 0) * item.quantity,
@@ -118,6 +120,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   );
 
   const getDeliveryCharge = () => {
+    if (hasPrebook) return 0;
     switch (formData.deliveryMethod) {
       case "inside-dhaka":
         return 70;
@@ -336,84 +339,86 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
             </section>
 
             {/* Logistics Group */}
-            <section className="space-y-8">
-              <div className="flex items-center gap-4">
-                <span className="text-[10px] uppercase tracking-[0.3em] font-black opacity-10">
-                  03 Logistics
-                </span>
-                <div className="h-px flex-1 bg-[var(--line)]"></div>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                {[
-                  {
-                    id: "inside-dhaka",
-                    label: "Dhaka City",
-                    price: 70,
-                    time: "1-2 Days",
-                    dhakaOnly: true,
-                  },
-                  {
-                    id: "outside-dhaka",
-                    label: "National",
-                    price: 120,
-                    time: "2-4 Days",
-                    dhakaOnly: false,
-                  },
-                  {
-                    id: "express-dhaka",
-                    label: "Priority",
-                    price: 100,
-                    time: "Next Day",
-                    dhakaOnly: true,
-                  },
-                ].map((method) => {
-                  const isDisabled =
-                    method.dhakaOnly &&
-                    formData.district &&
-                    formData.district !== "Dhaka City";
+            {!hasPrebook && (
+              <section className="space-y-8">
+                <div className="flex items-center gap-4">
+                  <span className="text-[10px] uppercase tracking-[0.3em] font-black opacity-10">
+                    03 Logistics
+                  </span>
+                  <div className="h-px flex-1 bg-[var(--line)]"></div>
+                </div>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  {[
+                    {
+                      id: "inside-dhaka",
+                      label: "Dhaka City",
+                      price: 70,
+                      time: "1-2 Days",
+                      dhakaOnly: true,
+                    },
+                    {
+                      id: "outside-dhaka",
+                      label: "National",
+                      price: 120,
+                      time: "2-4 Days",
+                      dhakaOnly: false,
+                    },
+                    {
+                      id: "express-dhaka",
+                      label: "Priority",
+                      price: 100,
+                      time: "Next Day",
+                      dhakaOnly: true,
+                    },
+                  ].map((method) => {
+                    const isDisabled =
+                      method.dhakaOnly &&
+                      formData.district &&
+                      formData.district !== "Dhaka City";
 
-                  return (
-                    <div
-                      key={method.id}
-                      onClick={() =>
-                        !isDisabled &&
-                        setFormData({ ...formData, deliveryMethod: method.id })
-                      }
-                      className={`cursor-pointer p-6 rounded-[32px] border transition-all duration-500 flex flex-col justify-between min-h-[120px] 
-                        ${isDisabled ? "opacity-20 cursor-not-allowed grayscale" : ""}
-                        ${
-                          formData.deliveryMethod === method.id
-                            ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-2xl scale-[1.02]"
-                            : "border-[var(--line)] bg-[var(--card-bg)] hover:border-[var(--accent)]"
+                    return (
+                      <div
+                        key={method.id}
+                        onClick={() =>
+                          !isDisabled &&
+                          setFormData({ ...formData, deliveryMethod: method.id })
                         }
-                      `}
-                    >
-                      <div>
-                        <p
-                          className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${formData.deliveryMethod === method.id ? "opacity-40" : "opacity-60"}`}
-                        >
-                          {method.label}
-                        </p>
-                        <p
-                          className={`text-[9px] uppercase ${formData.deliveryMethod === method.id ? "opacity-30" : "opacity-20"}`}
-                        >
-                          {method.time}
+                        className={`cursor-pointer p-6 rounded-[32px] border transition-all duration-500 flex flex-col justify-between min-h-[120px] 
+                          ${isDisabled ? "opacity-20 cursor-not-allowed grayscale" : ""}
+                          ${
+                            formData.deliveryMethod === method.id
+                              ? "border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-2xl scale-[1.02]"
+                              : "border-[var(--line)] bg-[var(--card-bg)] hover:border-[var(--accent)]"
+                          }
+                        `}
+                      >
+                        <div>
+                          <p
+                            className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${formData.deliveryMethod === method.id ? "opacity-40" : "opacity-60"}`}
+                          >
+                            {method.label}
+                          </p>
+                          <p
+                            className={`text-[9px] uppercase ${formData.deliveryMethod === method.id ? "opacity-30" : "opacity-20"}`}
+                          >
+                            {method.time}
+                          </p>
+                        </div>
+                        <p className="text-xl font-light tracking-tighter">
+                          ৳{method.price}
                         </p>
                       </div>
-                      <p className="text-xl font-light tracking-tighter">
-                        ৳{method.price}
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </section>
+                    );
+                  })}
+                </div>
+              </section>
+            )}
 
             {/* Payment Group */}
             <section className="space-y-8">
               <div className="flex items-center gap-4">
                 <span className="text-[10px] uppercase tracking-[0.3em] font-black opacity-10">
-                  04 Settlement
+                  {hasPrebook ? "03 Settlement" : "04 Settlement"}
                 </span>
                 <div className="h-px flex-1 bg-[var(--line)]"></div>
               </div>
@@ -601,14 +606,16 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
             </div>
 
             <div className="mt-auto pt-10 space-y-5">
-              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30">
+              <div className={`flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30 ${hasPrebook ? "pb-6 border-b border-[var(--line)]" : ""}`}>
                 <span>Value</span>
                 <span className="text-[var(--text)]">৳{subtotal}</span>
               </div>
-              <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30 pb-6 border-b border-[var(--line)]">
-                <span>Shipment</span>
-                <span className="text-[var(--text)]">৳{deliveryCharge}</span>
-              </div>
+              {!hasPrebook && (
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30 pb-6 border-b border-[var(--line)]">
+                  <span>Shipment</span>
+                  <span className="text-[var(--text)]">৳{deliveryCharge}</span>
+                </div>
+              )}
               <div className="pt-6 flex justify-between items-end">
                 <div className="flex flex-col">
                   <span className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-30 mb-3">
