@@ -4,7 +4,7 @@ import { Product, Order, ChatSession, Category, ChatMessage } from "../types";
 import { sheetApi } from "../services/api";
 import Logo from "../components/Logo";
 
-import { normalizeColors } from "../utils/colorUtils";
+import { normalizeColors, safeParseJSON } from "../utils/colorUtils";
 
 type AdminView =
   | "dashboard"
@@ -28,16 +28,6 @@ const parseBoolean = (val: any): boolean => {
     );
   }
   return false;
-};
-
-const safeParseJSON = (str: any) => {
-  if (!str) return [];
-  if (Array.isArray(str)) return str;
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return [];
-  }
 };
 
 const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
@@ -66,8 +56,9 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
   const [isProductModalOpen, setIsProductModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [mainImageBase64, setMainImageBase64] = useState<string>("");
-  const [galleryInputs, setGalleryInputs] = useState<{id: string, value: string}[]>([]);
-  const [colorInputs, setColorInputs] = useState<{id: string, value: string}[]>([]);
+  const [isMainImageOutOfStock, setIsMainImageOutOfStock] = useState<boolean>(false);
+  const [galleryInputs, setGalleryInputs] = useState<{id: string, value: string, isOutOfStock?: boolean}[]>([]);
+  const [colorInputs, setColorInputs] = useState<{id: string, value: string, isOutOfStock?: boolean}[]>([]);
 
   const [newCategoryName, setNewCategoryName] = useState("");
   const [isAddingCategory, setIsAddingCategory] = useState(false);
@@ -147,6 +138,8 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
             ...p,
             images: safeParseJSON(p.images),
             colors: normalizeColors(p.colors),
+            outOfStockColors: safeParseJSON(p.outOfStockColors),
+            outOfStockImages: safeParseJSON(p.outOfStockImages),
             isFeatured: parseBoolean(p.isFeatured),
             isComingSoon: parseBoolean(p.isComingSoon),
           })),
@@ -262,8 +255,17 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
   const handleOpenProductModal = (product: Product | null) => {
     setEditingProduct(product);
     setMainImageBase64(product?.image || "");
-    setGalleryInputs((product?.images || []).map(val => ({ id: Math.random().toString(), value: val })));
-    setColorInputs((product?.colors || []).map(val => ({ id: Math.random().toString(), value: val })));
+    setIsMainImageOutOfStock(product?.outOfStockImages?.some(img => img.trim() === (product?.image || "").trim()) || false);
+    setGalleryInputs((product?.images || []).map(val => ({
+      id: Math.random().toString(),
+      value: val,
+      isOutOfStock: product?.outOfStockImages?.some(img => img.trim() === val.trim()) || false
+    })));
+    setColorInputs((product?.colors || []).map(val => ({
+      id: Math.random().toString(),
+      value: val,
+      isOutOfStock: product?.outOfStockColors?.some(col => col.trim().toLowerCase() === val.trim().toLowerCase()) || false
+    })));
     setIsProductModalOpen(true);
   };
 
@@ -272,6 +274,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
     setIsSyncing(true);
     const formData = new FormData(e.currentTarget);
 
+    const mainImgUrl = mainImageBase64 || (formData.get("image_link") as string);
     const productData: Product = {
       id: editingProduct?.id || `prod-${Date.now()}`,
       name: formData.get("name") as string,
@@ -281,7 +284,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
       category: formData.get("category") as string,
       anime: formData.get("category") as string,
       description: formData.get("description") as string,
-      image: mainImageBase64 || (formData.get("image_link") as string),
+      image: mainImgUrl,
       color: formData.get("color") as string,
       colors: colorInputs.map(c => c.value).filter((c) => c.trim() !== ""),
       isFeatured:
@@ -293,6 +296,11 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
           ? ("TRUE" as any)
           : ("FALSE" as any),
       images: galleryInputs.map(img => img.value).filter((url) => url.trim() !== ""),
+      outOfStockColors: colorInputs.filter(c => c.isOutOfStock).map(c => c.value).filter((val) => val.trim() !== ""),
+      outOfStockImages: [
+        ...(isMainImageOutOfStock && mainImgUrl ? [mainImgUrl] : []),
+        ...galleryInputs.filter(img => img.isOutOfStock).map(img => img.value).filter((val) => val.trim() !== "")
+      ],
     };
 
     setProducts((prev) => {
@@ -837,6 +845,16 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                           +{p.images.length} Photos
                         </p>
                       )}
+                      {p.outOfStockColors && p.outOfStockColors.length > 0 && (
+                        <span className="text-[8px] font-black uppercase bg-red-950 text-red-400 border border-red-500/20 px-2 py-0.5 inline-block">
+                          {p.outOfStockColors.length} Out Color{p.outOfStockColors.length > 1 ? "s" : ""}
+                        </span>
+                      )}
+                      {p.outOfStockImages && p.outOfStockImages.length > 0 && (
+                        <span className="text-[8px] font-black uppercase bg-red-950 text-red-500 border border-red-500/25 px-2 py-0.5 inline-block">
+                          {p.outOfStockImages.length} Out Photo{p.outOfStockImages.length > 1 ? "s" : ""}
+                        </span>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -1330,7 +1348,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                   {colorInputs.map((colorItem, idx) => (
                     <div
                       key={colorItem.id}
-                      className="flex items-center gap-2 bg-zinc-950 text-white px-3 py-2 border-2 border-zinc-800"
+                      className={`flex items-center gap-2 bg-zinc-950 text-white px-3 py-2 border-2 transition-colors ${colorItem.isOutOfStock ? "border-red-600/50" : "border-zinc-800"}`}
                     >
                       <input
                         value={colorItem.value}
@@ -1340,7 +1358,24 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                           setColorInputs(next);
                         }}
                         className="bg-transparent border-b border-zinc-800 text-[10px] font-black uppercase outline-none w-24 focus:border-zinc-500"
+                        placeholder="e.g. Jet Black"
                       />
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...colorInputs];
+                          next[idx] = { ...next[idx], isOutOfStock: !next[idx].isOutOfStock };
+                          setColorInputs(next);
+                        }}
+                        className={`text-[8px] font-black uppercase px-2 py-1 rounded transition-colors ${
+                          colorItem.isOutOfStock
+                            ? "bg-red-950 text-red-500 border border-red-500/30 font-black animate-pulse"
+                            : "bg-zinc-800/80 text-zinc-400 hover:text-white"
+                        }`}
+                        title="Toggle Out of Stock status for this color variant"
+                      >
+                        {colorItem.isOutOfStock ? "Stock Out" : "In Stock"}
+                      </button>
                       <button
                         type="button"
                         onClick={() =>
@@ -1348,7 +1383,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                             prev.filter((_, i) => i !== idx),
                           )
                         }
-                        className="text-red-500/70 hover:text-red-500"
+                        className="text-red-500/70 hover:text-red-500 ml-1"
                       >
                         <i className="fas fa-times"></i>
                       </button>
@@ -1369,12 +1404,19 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                   Primary Product Photo
                 </label>
                 <div className="flex gap-4 items-start">
-                  <div className="w-24 h-32 border-2 border-zinc-800 overflow-hidden bg-zinc-950 flex-shrink-0">
+                  <div className="w-24 h-32 border-2 border-zinc-800 overflow-hidden bg-zinc-950 flex-shrink-0 relative">
                     {mainImageBase64 ? (
-                      <img
-                        src={mainImageBase64}
-                        className="w-full h-full object-cover"
-                      />
+                      <>
+                        <img
+                          src={mainImageBase64}
+                          className="w-full h-full object-cover"
+                        />
+                        {isMainImageOutOfStock && (
+                          <div className="absolute inset-0 bg-red-900/60 backdrop-blur-xs flex items-center justify-center border border-red-500">
+                            <span className="text-[8px] font-black uppercase tracking-widest text-red-100 bg-red-600 px-1 py-0.5 animate-pulse">STOCK OUT</span>
+                          </div>
+                        )}
+                      </>
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-zinc-800">
                         <i className="fas fa-image text-2xl"></i>
@@ -1395,14 +1437,27 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                         placeholder="Paste URL or upload below..."
                       />
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => mainFileRef.current?.click()}
-                      className="w-full py-3 bg-zinc-100 text-zinc-900 text-[9px] font-black uppercase tracking-widest hover:bg-white transition-colors"
-                    >
-                      <i className="fas fa-upload mr-2"></i> Upload Photo
-                      (JPG/PNG)
-                    </button>
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => mainFileRef.current?.click()}
+                        className="flex-1 py-3 bg-zinc-100 text-zinc-900 text-[9px] font-black uppercase tracking-widest hover:bg-white transition-colors"
+                      >
+                        <i className="fas fa-upload mr-2"></i> Upload Photo
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setIsMainImageOutOfStock(!isMainImageOutOfStock)}
+                        className={`px-4 py-3 text-[9px] font-black uppercase border transition-all ${
+                          isMainImageOutOfStock
+                            ? "bg-red-950 text-red-500 border-red-500/50 animate-pulse"
+                            : "bg-zinc-800 text-zinc-400 border-transparent hover:text-white"
+                        }`}
+                        title="Toggle Stock Out status for the main product photo"
+                      >
+                        {isMainImageOutOfStock ? "Stock Out" : "In Stock"}
+                      </button>
+                    </div>
                     <input
                       type="file"
                       ref={mainFileRef}
@@ -1422,14 +1477,21 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                   {galleryInputs.map((imgItem, idx) => (
                     <div
                       key={imgItem.id}
-                      className="flex gap-2 items-center bg-zinc-950 p-2 border-2 border-zinc-800"
+                      className={`flex gap-2 items-center bg-zinc-950 p-2 border-2 transition-colors ${imgItem.isOutOfStock ? "border-red-600/50" : "border-zinc-800"}`}
                     >
-                      <div className="w-10 h-12 bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0">
+                      <div className="w-10 h-12 bg-zinc-900 border border-zinc-800 overflow-hidden flex-shrink-0 relative">
                         {imgItem.value ? (
-                          <img
-                            src={imgItem.value}
-                            className="w-full h-full object-cover"
-                          />
+                          <>
+                            <img
+                              src={imgItem.value}
+                              className="w-full h-full object-cover"
+                            />
+                            {imgItem.isOutOfStock && (
+                              <div className="absolute inset-0 bg-red-900/60 backdrop-blur-xs flex items-center justify-center border border-red-500">
+                                <span className="text-[6px] font-black tracking-widest text-red-100 bg-red-600 px-0.5 animate-pulse">OUT</span>
+                              </div>
+                            )}
+                          </>
                         ) : (
                           <div className="w-full h-full flex items-center justify-center text-zinc-800">
                             <i className="fas fa-camera text-[10px]"></i>
@@ -1446,7 +1508,23 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                         className="flex-1 border-b border-zinc-800 p-2 text-[9px] font-bold outline-none bg-transparent text-white"
                         placeholder="Paste sub-image URL..."
                       />
-                      <label className="bg-zinc-800 text-zinc-400 px-3 py-1 text-[8px] font-black cursor-pointer hover:bg-zinc-700 hover:text-white transition-colors">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const next = [...galleryInputs];
+                          next[idx] = { ...next[idx], isOutOfStock: !next[idx].isOutOfStock };
+                          setGalleryInputs(next);
+                        }}
+                        className={`px-3 py-1 text-[8px] font-black transition-all self-stretch uppercase flex items-center justify-center border ${
+                          imgItem.isOutOfStock
+                            ? "bg-red-950 text-red-500 border-red-500/30 animate-pulse font-black"
+                            : "bg-zinc-800/80 text-zinc-400 border-transparent hover:text-white"
+                        }`}
+                        title="Toggle Out of Stock status for this gallery photo"
+                      >
+                        {imgItem.isOutOfStock ? "Stock Out" : "In Stock"}
+                      </button>
+                      <label className="bg-zinc-800 text-zinc-400 px-3 py-1 text-[8px] font-black cursor-pointer hover:bg-zinc-700 hover:text-white transition-colors self-stretch flex items-center">
                         UPLOAD{" "}
                         <input
                           type="file"

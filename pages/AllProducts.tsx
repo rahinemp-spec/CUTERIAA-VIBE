@@ -4,22 +4,12 @@ import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { Product } from '../types';
 import { sheetApi } from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
-import { normalizeColors } from '../utils/colorUtils';
+import { normalizeColors, safeParseJSON } from '../utils/colorUtils';
 
 interface AllProductsProps {
   onAddToCart: (product: Product) => void;
   onQuickView: (product: Product) => void;
 }
-
-const safeParseJSON = (str: any) => {
-  if (!str) return [];
-  if (Array.isArray(str)) return str;
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return [];
-  }
-};
 
 const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) => {
   const [products, setProducts] = useState<Product[]>([]);
@@ -39,7 +29,9 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
             const formatted = parsed.map(p => ({
               ...p,
               images: safeParseJSON(p.images),
-              colors: normalizeColors(p.colors)
+              colors: normalizeColors(p.colors),
+              outOfStockColors: safeParseJSON(p.outOfStockColors),
+              outOfStockImages: safeParseJSON(p.outOfStockImages)
             }));
             setProducts(formatted);
           }
@@ -53,7 +45,9 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
         const formatted = cloudProds.map((p: any) => ({
           ...p,
           images: safeParseJSON(p.images),
-          colors: normalizeColors(p.colors)
+          colors: normalizeColors(p.colors),
+          outOfStockColors: safeParseJSON(p.outOfStockColors),
+          outOfStockImages: safeParseJSON(p.outOfStockImages)
         }));
         setProducts(formatted);
       }

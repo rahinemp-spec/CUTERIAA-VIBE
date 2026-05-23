@@ -21,8 +21,9 @@ const QuickView: React.FC<QuickViewProps> = ({
   useEffect(() => {
     if (product) {
       setActiveImage(product.image);
-      const defaultColor =
-        product.color || (product.colors && product.colors[0]) || "";
+      const allColors = product.colors || (product.color ? [product.color] : []);
+      const firstInStockColor = allColors.find(col => !product.outOfStockColors?.some(osc => osc.trim().toLowerCase() === col.trim().toLowerCase()));
+      const defaultColor = firstInStockColor || product.color || (product.colors && product.colors[0]) || "";
       setSelectedColor(defaultColor);
     }
   }, [product]);
@@ -31,6 +32,14 @@ const QuickView: React.FC<QuickViewProps> = ({
 
   const gallery = [product.image, ...(product.images || [])];
   const allColors = product.colors || (product.color ? [product.color] : []);
+
+  const isColorOutOfStock = selectedColor
+    ? product.outOfStockColors?.some(col => col.trim().toLowerCase() === selectedColor.trim().toLowerCase())
+    : false;
+  const isImageOutOfStock = activeImage
+    ? product.outOfStockImages?.some(img => img.trim() === activeImage.trim())
+    : false;
+  const isOutOfStock = isColorOutOfStock || (allColors.length === 0 && isImageOutOfStock);
 
   return (
     <AnimatePresence>
@@ -87,32 +96,49 @@ const QuickView: React.FC<QuickViewProps> = ({
                       </span>
                     </div>
                   )}
+                  {product.outOfStockImages?.some(img => img.trim() === activeImage.trim()) && (
+                    <div className="absolute inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center pointer-events-none z-10 transition-all animate-fadeIn">
+                      <div className="border-2 border-red-500 text-red-500 px-6 py-3 font-black text-xs uppercase tracking-[0.3em] rotate-[-12deg] bg-zinc-950/95 shadow-2xl">
+                        OUT OF STOCK
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {gallery.length > 1 && (
                   <div className="flex gap-4 overflow-x-auto pb-4">
-                    {gallery.map((img, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setActiveImage(img)}
-                        className={`w-20 h-24 flex-shrink-0 transition-opacity flex items-center justify-center bg-[var(--card-bg)] border border-[var(--line)] ${activeImage === img ? "opacity-100 ring-1 ring-[var(--text)]" : "opacity-30 hover:opacity-60"}`}
-                      >
-                        {img ? (
-                          <img
-                            src={img}
-                            className="w-full h-full object-cover"
-                          />
-                        ) : (
-                          <i className="fas fa-image opacity-10"></i>
-                        )}
-                      </button>
-                    ))}
+                    {gallery.map((img, idx) => {
+                      const isImgOutOfStock = img ? product.outOfStockImages?.some(osc => osc.trim() === img.trim()) : false;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => setActiveImage(img)}
+                          className={`w-20 h-24 flex-shrink-0 transition-opacity flex items-center justify-center bg-[var(--card-bg)] border border-[var(--line)] relative ${activeImage === img ? "opacity-100 ring-1 ring-[var(--text)]" : "opacity-30 hover:opacity-60"}`}
+                        >
+                          {img ? (
+                            <>
+                              <img
+                                src={img}
+                                className="w-full h-full object-cover animate-fadeIn"
+                              />
+                              {isImgOutOfStock && (
+                                <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
+                                  <span className="text-[8px] font-black tracking-widest text-red-500 bg-zinc-950 px-1 uppercase py-0.5 border border-red-500/30 scale-90 animate-fadeIn">OUT</span>
+                                </div>
+                              )}
+                            </>
+                          ) : (
+                            <i className="fas fa-image opacity-10"></i>
+                          )}
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
               </div>
 
               {/* Details Section */}
-              <div className="lg:col-span-6 p-6 sm:p-8 md:p-16 flex flex-col justify-center">
+              <div className="lg:col-span-6 p-6 sm:p-8 md:p-16 flex flex-col justify-center bg-[var(--card-bg)]">
                 <div className="mb-8 sm:mb-12">
                   <div className="flex items-center gap-3 mb-4">
                     <span className="w-6 h-[1px] bg-[var(--line)]" />
@@ -137,22 +163,37 @@ const QuickView: React.FC<QuickViewProps> = ({
                         01 / SELECT COLOR
                       </h4>
                       <div className="flex flex-wrap gap-3">
-                        {allColors.map((col) => (
-                          <button
-                            key={col}
-                            onClick={() => setSelectedColor(col)}
-                            className={`px-6 py-3 border font-black text-[10px] uppercase tracking-[0.2em] transition-all rounded-full flex items-center gap-3 ${
-                              selectedColor === col
-                                ? "bg-[var(--text)] text-[var(--bg)] border-[var(--text)] scale-105"
-                                : "bg-transparent opacity-30 border-[var(--line)] hover:opacity-100 hover:border-[var(--text)]"
-                            }`}
-                          >
-                            <span
-                              className={`w-1.5 h-1.5 rounded-full ${selectedColor === col ? "bg-[var(--bg)]" : "bg-current opacity-20"}`}
-                            />
-                            {col}
-                          </button>
-                        ))}
+                        {allColors.map((col) => {
+                          const isColOutOfStock = product.outOfStockColors?.some(osc => osc.trim().toLowerCase() === col.trim().toLowerCase());
+                          return (
+                            <button
+                              key={col}
+                              onClick={() => setSelectedColor(col)}
+                              className={`px-6 py-3 border font-black text-[10px] uppercase tracking-[0.2em] transition-all rounded-full flex items-center gap-3 cursor-pointer ${
+                                selectedColor === col
+                                  ? isColOutOfStock
+                                    ? "bg-red-950 text-red-400 border-red-500 scale-105"
+                                    : "bg-[var(--text)] text-[var(--bg)] border-[var(--text)] scale-105"
+                                  : isColOutOfStock
+                                    ? "bg-transparent opacity-40 border-dashed border-red-500 text-red-400 hover:opacity-100 hover:border-red-500"
+                                    : "bg-transparent opacity-30 border-[var(--line)] hover:opacity-100 hover:border-[var(--text)]"
+                              }`}
+                            >
+                              <span
+                                className={`w-1.5 h-1.5 rounded-full ${
+                                  selectedColor === col
+                                    ? isColOutOfStock
+                                      ? "bg-red-400"
+                                      : "bg-[var(--bg)]"
+                                    : isColOutOfStock
+                                      ? "bg-red-500/60 animate-pulse"
+                                      : "bg-current opacity-20"
+                                }`}
+                              />
+                              {col} {isColOutOfStock && <span className="text-[7px] text-red-500 font-extrabold">(OUT OF STOCK)</span>}
+                            </button>
+                          );
+                        })}
                       </div>
                     </div>
                   )}
@@ -169,19 +210,23 @@ const QuickView: React.FC<QuickViewProps> = ({
 
                   <button
                     onClick={() => {
-                      if (!product.isComingSoon) {
+                      if (!product.isComingSoon && !isOutOfStock) {
                         onAddToCart(product, selectedColor);
                         onClose();
                       }
                     }}
-                    disabled={product.isComingSoon}
+                    disabled={product.isComingSoon || isOutOfStock}
                     className={`w-full py-6 font-bold text-[10px] uppercase tracking-[0.5em] transition-all rounded-full border shadow-xl ${
-                      product.isComingSoon
-                        ? "bg-transparent text-[var(--text)] border-[var(--line)] opacity-50 cursor-not-allowed"
-                        : "bg-[var(--text)] text-[var(--bg)] border-[var(--text)] hover:opacity-90"
+                      product.isComingSoon || isOutOfStock
+                        ? "bg-transparent text-[var(--text)] border-[var(--line)] opacity-40 cursor-not-allowed"
+                        : "bg-[var(--text)] text-[var(--bg)] border-[var(--text)] hover:opacity-90 hover:scale-[1.01]"
                     }`}
                   >
-                    {product.isComingSoon ? "COMING SOON" : "ADD TO BAG"}
+                    {product.isComingSoon 
+                      ? "COMING SOON" 
+                      : isOutOfStock 
+                        ? "OUT OF STOCK" 
+                        : "ADD TO BAG"}
                   </button>
                 </div>
               </div>

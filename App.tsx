@@ -16,7 +16,7 @@ import ContactUs from './pages/ContactUs';
 import { Product, CartItem } from './types';
 import { PRODUCTS as FALLBACK_PRODUCTS } from './constants';
 import { sheetApi } from './services/api';
-import { normalizeColors } from './utils/colorUtils';
+import { normalizeColors, safeParseJSON } from './utils/colorUtils';
 
 const parseBoolean = (val: any): boolean => {
   if (typeof val === 'boolean') return val;
@@ -26,16 +26,6 @@ const parseBoolean = (val: any): boolean => {
     return lower === 'true' || lower === 'on' || lower === '1' || lower === 'yes' || lower === 'featured';
   }
   return false;
-};
-
-const safeParseJSON = (str: any) => {
-  if (!str) return [];
-  if (Array.isArray(str)) return str;
-  try {
-    return JSON.parse(str);
-  } catch (e) {
-    return [];
-  }
 };
 
 export default function App() {
@@ -69,6 +59,8 @@ export default function App() {
           ...p,
           images: safeParseJSON(p.images),
           colors: normalizeColors(p.colors),
+          outOfStockColors: safeParseJSON(p.outOfStockColors),
+          outOfStockImages: safeParseJSON(p.outOfStockImages),
           isFeatured: parseBoolean(p.isFeatured)
         }));
         setCloudProducts(formattedProducts.length > 0 ? formattedProducts : FALLBACK_PRODUCTS);
@@ -90,8 +82,18 @@ export default function App() {
   }, [activeTab]);
 
   const handleAddToCart = (product: Product, color?: string) => {
+    const selectedColor = color || product.color || (product.colors && product.colors[0]) || 'Standard';
+    
+    // Check if the selected color is out of stock in the product record
+    const isOutOfStockNow = product.outOfStockColors?.some(
+      osc => osc.trim().toLowerCase() === selectedColor.trim().toLowerCase()
+    );
+    if (isOutOfStockNow) {
+      alert(`Sorry, the color "${selectedColor}" for "${product.name}" is currently out of stock and cannot be ordered.`);
+      return;
+    }
+
     setCartItems(prev => {
-      const selectedColor = color || product.color || (product.colors && product.colors[0]) || 'Standard';
       const itemKey = `${product.id}-${selectedColor}`;
       const existing = prev.find(item => `${item.id}-${item.selectedColor}` === itemKey);
       

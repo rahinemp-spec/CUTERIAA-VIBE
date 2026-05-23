@@ -11,6 +11,8 @@ export interface Product {
   isComingSoon?: boolean;
   color?: string; // Legacy/Single color label
   colors?: string[]; // Multiple color options
+  outOfStockColors?: string[];
+  outOfStockImages?: string[];
 }
 
 export interface Category {

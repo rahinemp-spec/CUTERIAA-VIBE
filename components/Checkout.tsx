@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { CartItem, Order } from "../types";
 import { sheetApi } from "../services/api";
+import { safeParseJSON } from "../utils/colorUtils";
 
 interface CheckoutProps {
   items: CartItem[];
@@ -158,6 +159,30 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
+
+    // Active cloud inventory validation guard
+    try {
+      const latestProducts = await sheetApi.fetchProducts();
+      if (latestProducts && Array.isArray(latestProducts)) {
+        for (const item of items) {
+          const matchedProd = latestProducts.find((p: any) => String(p.id) === String(item.id));
+          if (matchedProd) {
+            const outColors = safeParseJSON(matchedProd.outOfStockColors);
+            const isOutOfStockNow = item.selectedColor 
+              ? outColors.some((c: string) => c.trim().toLowerCase() === item.selectedColor!.trim().toLowerCase())
+              : false;
+            
+            if (isOutOfStockNow) {
+              alert(`Sorry, the item "${item.name}" in color "${item.selectedColor || 'Standard'}" has just gone out of stock. Please remove it from your shopping bag to place your order.`);
+              setIsSubmitting(false);
+              return;
+            }
+          }
+        }
+      }
+    } catch (err) {
+      console.warn("Failed active inventory validation:", err);
+    }
 
     const orderId = `CTR-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
