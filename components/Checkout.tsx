@@ -101,6 +101,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   const [availablePromos, setAvailablePromos] = useState<PromoCode[]>([]);
 
   useEffect(() => {
+    // 1. Initial quick load from localStorage / default
     const saved = localStorage.getItem("cuteriaa_promo_codes");
     if (saved) {
       try {
@@ -111,6 +112,31 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
     } else {
       setAvailablePromos(DEFAULT_PROMO_CODES);
     }
+
+    // 2. Freshly fetch from Google Sheet so we constant-sync live promo codes
+    const loadPromosFromCloud = async () => {
+      try {
+        const cloudPromos = await sheetApi.fetchPromos();
+        if (cloudPromos && Array.isArray(cloudPromos)) {
+          const formattedPromos: PromoCode[] = cloudPromos.map((p: any) => ({
+            id: String(p.id),
+            code: String(p.code),
+            type: (p.type || "percentage") as any,
+            value: Number(p.value) || 0,
+            minPurchase: p.minPurchase !== undefined && String(p.minPurchase).trim() !== "" ? Number(p.minPurchase) : undefined,
+            deliveryOption: (p.deliveryOption || "none") as any,
+            status: (p.status || "active") as any,
+            createdAt: p.createdAt ? String(p.createdAt) : new Date().toISOString()
+          }));
+          setAvailablePromos(formattedPromos);
+          localStorage.setItem("cuteriaa_promo_codes", JSON.stringify(formattedPromos));
+        }
+      } catch (err) {
+        console.error("Failed to fetch promo codes in checkout:", err);
+      }
+    };
+    
+    loadPromosFromCloud();
   }, []);
 
   const handleApplyPromo = () => {
