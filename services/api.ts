@@ -1,10 +1,10 @@
 
 /**
  * CUTERIAA - PRO CLOUD SYNC SERVICE
- * Updated Endpoint URL: AKfycbyYJGYeRrlB13WmxwqUdBErAeRbVvsSCIkVgmJr0wUk6M7MOmCo6E9SI6yz7ePQydnC
+ * Updated Endpoint URL: AKfycbzUPm0ybw1iaRk2nchXaUwlxH5ZEy6-QTZ0GPsZ684cbgYiy5eAnSNRep4DHDD-2yeF
  */
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbyYJGYeRrlB13WmxwqUdBErAeRbVvsSCIkVgmJr0wUk6M7MOmCo6E9SI6yz7ePQydnC/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzUPm0ybw1iaRk2nchXaUwlxH5ZEy6-QTZ0GPsZ684cbgYiy5eAnSNRep4DHDD-2yeF/exec';
 
 async function cloudRequest(action: string, data?: any) {
   try {

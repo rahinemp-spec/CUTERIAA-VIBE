@@ -59,7 +59,7 @@ function doPost(e) {
 function runSetup() {
   const requiredSheets = {
     'Users': ['id', 'pass', 'role', 'name'],
-    'Products': ['id', 'name', 'price', 'category', 'anime', 'description', 'image', 'images', 'isFeatured', 'isComingSoon', 'color', 'colors', 'outOfStockColors', 'outOfStockImages'],
+    'Products': ['id', 'name', 'price', 'category', 'anime', 'description', 'image', 'images', 'isFeatured', 'isComingSoon', 'color', 'colors', 'outOfStockColors', 'outOfStockImages', 'videoUrl'],
     'Categories': ['id', 'name'],
     'Orders': ['date', 'id', 'customer', 'total', 'status', 'items', 'subtotal', 'deliveryCharge', 'paymentMethod', 'transactionInfo'],
     'Chats': ['id', 'userName', 'userEmail', 'messages', 'lastMessageAt', 'status'],

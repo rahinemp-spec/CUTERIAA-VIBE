@@ -284,6 +284,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
       category: formData.get("category") as string,
       anime: formData.get("category") as string,
       description: formData.get("description") as string,
+      videoUrl: (formData.get("videoUrl") as string) || "",
       image: mainImgUrl,
       color: formData.get("color") as string,
       colors: colorInputs.map(c => c.value).filter((c) => c.trim() !== ""),
@@ -1564,6 +1565,19 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                   name="description"
                   defaultValue={editingProduct?.description}
                   className="w-full border-2 border-zinc-800 p-4 text-xs font-bold outline-none h-20 bg-zinc-950 text-white focus:bg-zinc-800 focus:border-zinc-100 resize-none transition-all"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                  Video Link (YouTube/Shorts or Direct MP4 link)
+                </label>
+                <input
+                  name="videoUrl"
+                  type="url"
+                  placeholder="e.g. https://www.youtube.com/watch?v=... or direct MP4 URL"
+                  defaultValue={editingProduct?.videoUrl}
+                  className="w-full border-2 border-zinc-800 p-4 text-xs font-bold outline-none bg-zinc-950 text-white focus:bg-zinc-800 focus:border-zinc-100 transition-all"
                 />
               </div>
 

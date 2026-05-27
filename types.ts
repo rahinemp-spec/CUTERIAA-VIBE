@@ -13,6 +13,7 @@ export interface Product {
   colors?: string[]; // Multiple color options
   outOfStockColors?: string[];
   outOfStockImages?: string[];
+  videoUrl?: string;
 }
 
 export interface Category {
