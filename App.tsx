@@ -16,7 +16,7 @@ import ContactUs from './pages/ContactUs';
 import { Product, CartItem } from './types';
 import { PRODUCTS as FALLBACK_PRODUCTS } from './constants';
 import { sheetApi } from './services/api';
-import { normalizeColors, safeParseJSON } from './utils/colorUtils';
+import { normalizeColors, safeParseJSON, normalizeProduct } from './utils/colorUtils';
 
 const parseBoolean = (val: any): boolean => {
   if (typeof val === 'boolean') return val;
@@ -55,14 +55,7 @@ export default function App() {
     try {
       const prods = await sheetApi.fetchProducts();
       if (prods && Array.isArray(prods)) {
-        const formattedProducts = prods.map((p: any) => ({
-          ...p,
-          images: safeParseJSON(p.images),
-          colors: normalizeColors(p.colors),
-          outOfStockColors: safeParseJSON(p.outOfStockColors),
-          outOfStockImages: safeParseJSON(p.outOfStockImages),
-          isFeatured: parseBoolean(p.isFeatured)
-        }));
+        const formattedProducts = prods.map((p: any) => normalizeProduct(p)).filter(Boolean);
         setCloudProducts(formattedProducts.length > 0 ? formattedProducts : FALLBACK_PRODUCTS);
       }
       await sheetApi.fetchCategories();
@@ -97,10 +90,17 @@ export default function App() {
       const itemKey = `${product.id}-${selectedColor}`;
       const existing = prev.find(item => `${item.id}-${item.selectedColor}` === itemKey);
       
+      const hasDiscount = product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "";
+      const cartProduct = {
+        ...product,
+        price: hasDiscount ? (isNaN(Number(product.discountPrice)) ? (product.discountPrice as string) : Number(product.discountPrice)) : product.price,
+        originalPrice: hasDiscount ? product.price : undefined
+      };
+
       if (existing) {
         return prev.map(item => (`${item.id}-${item.selectedColor}` === itemKey) ? { ...item, quantity: item.quantity + 1 } : item);
       }
-      return [...prev, { ...product, quantity: 1, selectedColor: selectedColor }];
+      return [...prev, { ...cartProduct, quantity: 1, selectedColor: selectedColor }];
     });
     setIsCartOpen(true);
   };

@@ -82,7 +82,22 @@ const Cart: React.FC<CartProps> = ({ items, onRemove, onUpdateQuantity, isOpen, 
                               <button onClick={() => onUpdateQuantity(uniqueKey, 1)} className="opacity-40 hover:opacity-100 transition-opacity px-2"><i className="fas fa-plus text-[8px]"></i></button>
                             </div>
                           </div>
-                          <p className="text-sm font-medium opacity-80">{typeof item.price === 'number' ? `৳${item.price}` : item.price}</p>
+                          <div className="flex items-center gap-2">
+                            {item.originalPrice !== undefined && item.originalPrice !== null && String(item.originalPrice).trim() !== "" ? (
+                              <>
+                                <span className="text-sm font-bold text-rose-500">
+                                  ৳{item.price}
+                                </span>
+                                <span className="text-[10px] font-medium opacity-30 line-through">
+                                  ৳{item.originalPrice}
+                                </span>
+                              </>
+                            ) : (
+                              <p className="text-sm font-medium opacity-80">
+                                {typeof item.price === 'number' ? `৳${item.price}` : item.price}
+                              </p>
+                            )}
+                          </div>
                         </div>
                       </div>
                       <button onClick={() => onRemove(uniqueKey)} className="opacity-10 hover:text-red-500 transition-colors self-start py-1">

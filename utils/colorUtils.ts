@@ -81,3 +81,109 @@ export function safeParseJSON(str: any): string[] {
   }).filter(Boolean);
 }
 
+/**
+ * Robust case-insensitive and alternative-friendly key lookup.
+ */
+export function getFlexibleProperty(obj: any, keys: string[]): any {
+  if (!obj) return undefined;
+  // Try direct lookup first
+  for (const k of keys) {
+    if (obj[k] !== undefined && obj[k] !== null) return obj[k];
+  }
+  // Case-insensitive and variation-independent fallback
+  const objKeys = Object.keys(obj);
+  const normalizedKeyVariants = keys.map(k => k.toLowerCase().replace(/[\s_-]/g, ''));
+  for (const ok of objKeys) {
+    const normOk = ok.toLowerCase().replace(/[\s_-]/g, '');
+    const idx = normalizedKeyVariants.indexOf(normOk);
+    if (idx !== -1) {
+      return obj[ok];
+    }
+  }
+  return undefined;
+}
+
+export function parseBoolean(val: any): boolean {
+  if (typeof val === 'boolean') return val;
+  if (typeof val === 'number') return val === 1;
+  if (typeof val === 'string') {
+    const lower = val.toLowerCase().trim();
+    return lower === 'true' || lower === 'on' || lower === '1' || lower === 'yes' || lower === 'featured' || lower === 'comingsoon' || lower === 'coming soon';
+  }
+  return false;
+}
+
+/**
+ * Normalizes a raw object (e.g., loaded from a spreadsheet) into a valid Product object.
+ * Maps flexible / user-friendly spellings of column keys to their type definitions.
+ */
+export function normalizeProduct(raw: any): any {
+  if (!raw) return null;
+
+  // Retrieve keys very robustly
+  const id = getFlexibleProperty(raw, ['id']);
+  const name = getFlexibleProperty(raw, ['name', 'title']);
+  const description = getFlexibleProperty(raw, ['description', 'desc']);
+  const category = getFlexibleProperty(raw, ['category', 'type']);
+  const anime = getFlexibleProperty(raw, ['anime', 'series']);
+  
+  // Images
+  const image = getFlexibleProperty(raw, ['image', 'mainImage', 'featuredImage']) || '';
+  const images = safeParseJSON(getFlexibleProperty(raw, ['images', 'gallery']));
+  
+  // Colors and Out Of Stock Colors/Images
+  const color = getFlexibleProperty(raw, ['color']);
+  const colors = normalizeColors(getFlexibleProperty(raw, ['colors', 'variants']));
+  const outOfStockColors = safeParseJSON(getFlexibleProperty(raw, ['outOfStockColors', 'outofstockcolors', 'out_of_stock_colors']));
+  const outOfStockImages = safeParseJSON(getFlexibleProperty(raw, ['outOfStockImages', 'outofstockimages', 'out_of_stock_images']));
+  
+  // Other flags
+  const isFeatured = parseBoolean(getFlexibleProperty(raw, ['isFeatured', 'featured', 'isfeatured']));
+  const isComingSoon = parseBoolean(getFlexibleProperty(raw, ['isComingSoon', 'comingSoon', 'comingsoon', 'iscomingsoon']));
+  const videoUrl = getFlexibleProperty(raw, ['videoUrl', 'video', 'videourl']);
+
+  // REGULAR PRICE vs DISCOUNT PRICE
+  let rawPrice = getFlexibleProperty(raw, ['price', 'regularPrice', 'regular_price', 'regular price']);
+  let price: number | string = rawPrice;
+  if (rawPrice !== undefined && rawPrice !== null && String(rawPrice).trim() !== '') {
+    const trimmed = String(rawPrice).trim();
+    if (!isNaN(Number(trimmed))) {
+      price = Number(trimmed);
+    } else {
+      price = trimmed;
+    }
+  } else {
+    price = '';
+  }
+
+  let rawDiscount = getFlexibleProperty(raw, ['discountPrice', 'discountprice', 'discount_price', 'discount price', 'salePrice', 'sale price', 'saleprice', 'sale_price']);
+  let discountPrice: number | string | undefined = undefined;
+  if (rawDiscount !== undefined && rawDiscount !== null && String(rawDiscount).trim() !== '') {
+    const trimmedDisc = String(rawDiscount).trim();
+    if (!isNaN(Number(trimmedDisc))) {
+      discountPrice = Number(trimmedDisc);
+    } else {
+      discountPrice = trimmedDisc;
+    }
+  }
+
+  return {
+    id: id ? String(id) : Math.random().toString(36).substr(2, 9),
+    name: name ? String(name) : 'Unnamed Product',
+    price,
+    discountPrice,
+    image,
+    images: images.length > 0 ? images : (image ? [image] : []),
+    category: category ? String(category) : 'General',
+    description: description ? String(description) : '',
+    anime: anime ? String(anime) : '',
+    color: color ? String(color) : '',
+    colors,
+    outOfStockColors,
+    outOfStockImages,
+    isFeatured,
+    isComingSoon,
+    videoUrl: videoUrl ? String(videoUrl) : ''
+  };
+}
+

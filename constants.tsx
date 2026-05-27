@@ -72,3 +72,47 @@ export const SIZE_CHART = [
   { size: 'XL', chest: '43', length: '29', sleeve: '9' },
   { size: '2XL', chest: '45', length: '30', sleeve: '9.25' },
 ];
+
+export const DEFAULT_PROMO_CODES = [
+  {
+    id: 'promo-1',
+    code: 'NEWYEAR15',
+    type: 'percentage',
+    value: 15,
+    minPurchase: 500,
+    deliveryOption: 'none',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    id: 'promo-2',
+    code: 'FREESHIP',
+    type: 'fixed_amount',
+    value: 0,
+    minPurchase: 1000,
+    deliveryOption: 'all',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    id: 'promo-3',
+    code: 'DHAKAFREE',
+    type: 'fixed_amount',
+    value: 0,
+    minPurchase: 800,
+    deliveryOption: 'dhaka',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  },
+  {
+    id: 'promo-4',
+    code: 'WELCOME50',
+    type: 'fixed_amount',
+    value: 50,
+    minPurchase: 300,
+    deliveryOption: 'none',
+    status: 'active',
+    createdAt: '2026-01-01T00:00:00.000Z'
+  }
+];
+

@@ -233,6 +233,11 @@ export default function Home({ products, onAddToCart, onQuickView, onExploreProd
                         COMING SOON
                       </span>
                     )}
+                    {product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "" && (
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-rose-600 text-white px-2 py-1 shadow-lg flex items-center gap-1 self-start animate-pulse rounded-xs">
+                        <i className="fas fa-tags text-[7px]" /> SALE
+                      </span>
+                    )}
                   </div>
                   <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="text-[10px] font-bold uppercase tracking-[0.4em] border border-white px-6 py-3 text-white">Quick View</span>
@@ -244,7 +249,20 @@ export default function Home({ products, onAddToCart, onQuickView, onExploreProd
                     <p className="text-[9px] font-medium opacity-30 uppercase tracking-[0.3em] mb-2">{product.anime || product.category}</p>
                     <h3 className="text-xl font-display tracking-tight transition-colors uppercase">{product.name}</h3>
                   </div>
-                  <span className="text-lg font-medium tracking-tight opacity-80">{typeof product.price === 'number' ? `৳${product.price}` : product.price}</span>
+                  {product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "" ? (
+                    <div className="text-right">
+                      <span className="text-lg font-black tracking-tight text-rose-500 block">
+                        ৳{product.discountPrice}
+                      </span>
+                      <span className="text-xs font-medium tracking-tight opacity-30 line-through">
+                        ৳{product.price}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="text-lg font-medium tracking-tight opacity-80">
+                      {typeof product.price === 'number' ? `৳${product.price}` : product.price}
+                    </span>
+                  )}
                 </div>
               </motion.div>
             ))}

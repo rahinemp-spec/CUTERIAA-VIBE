@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { CartItem, Order } from "../types";
+import { CartItem, Order, PromoCode } from "../types";
 import { sheetApi } from "../services/api";
 import { safeParseJSON } from "../utils/colorUtils";
+import { DEFAULT_PROMO_CODES } from "../constants";
 
 interface CheckoutProps {
   items: CartItem[];
@@ -93,6 +94,90 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  const [promoCodeInput, setPromoCodeInput] = useState("");
+  const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
+  const [promoError, setPromoError] = useState("");
+  const [promoSuccess, setPromoSuccess] = useState("");
+  const [availablePromos, setAvailablePromos] = useState<PromoCode[]>([]);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("cuteriaa_promo_codes");
+    if (saved) {
+      try {
+        setAvailablePromos(JSON.parse(saved));
+      } catch (e) {
+        setAvailablePromos(DEFAULT_PROMO_CODES);
+      }
+    } else {
+      setAvailablePromos(DEFAULT_PROMO_CODES);
+    }
+  }, []);
+
+  const handleApplyPromo = () => {
+    setPromoError("");
+    setPromoSuccess("");
+    
+    if (!promoCodeInput.trim()) return;
+    const targetCode = promoCodeInput.trim().toUpperCase();
+    
+    const found = availablePromos.find(p => p.code.toUpperCase() === targetCode);
+    
+    if (!found) {
+      setPromoError("Invalid promo code. Please check spelling.");
+      setAppliedPromo(null);
+      return;
+    }
+    
+    if (found.status === "inactive") {
+      setPromoError("This promo card campaign has expired.");
+      setAppliedPromo(null);
+      return;
+    }
+    
+    if (found.minPurchase && subtotal < found.minPurchase) {
+      setPromoError(`Requires a minimum purchase of ৳${found.minPurchase}.`);
+      setAppliedPromo(null);
+      return;
+    }
+    
+    setAppliedPromo(found);
+    setPromoSuccess(`Promo Code -${found.code}- applied!`);
+  };
+
+  const isFreeShippingApplied = () => {
+    if (!appliedPromo) return false;
+    if (appliedPromo.minPurchase && subtotal < appliedPromo.minPurchase) return false;
+    
+    const method = formData.deliveryMethod;
+    const opt = appliedPromo.deliveryOption;
+    
+    if (opt === "all") return true;
+    if (opt === "dhaka" && (method === "inside-dhaka" || method === "express-dhaka")) return true;
+    if (opt === "outside" && method === "outside-dhaka") return true;
+    
+    return false;
+  };
+
+  const getPromoDiscountAmount = () => {
+    if (!appliedPromo) return 0;
+    if (appliedPromo.minPurchase && subtotal < appliedPromo.minPurchase) return 0;
+    
+    // Calculate eligible subtotal excluding items with existing discounts
+    const eligibleSubtotal = items.reduce((sum, item) => {
+      const isDiscounted = 
+        (item.originalPrice !== undefined && item.originalPrice !== null && String(item.originalPrice).trim() !== "") ||
+        (item.discountPrice !== undefined && item.discountPrice !== null && String(item.discountPrice).trim() !== "");
+      if (isDiscounted) return sum;
+      return sum + (typeof item.price === "number" ? item.price : 0) * item.quantity;
+    }, 0);
+
+    if (appliedPromo.type === "percentage") {
+      return Math.round(eligibleSubtotal * (appliedPromo.value / 100));
+    } else {
+      return Math.min(appliedPromo.value, eligibleSubtotal);
+    }
+  };
+
   // Auto-adjust delivery method based on district
   useEffect(() => {
     if (!formData.district) return;
@@ -122,6 +207,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
 
   const getDeliveryCharge = () => {
     if (hasPrebook) return 0;
+    if (isFreeShippingApplied()) return 0;
     switch (formData.deliveryMethod) {
       case "inside-dhaka":
         return 70;
@@ -148,7 +234,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   };
 
   const deliveryCharge = getDeliveryCharge();
-  const total = subtotal + deliveryCharge;
+  const promoDiscount = getPromoDiscountAmount();
+  const total = Math.max(0, subtotal + deliveryCharge - promoDiscount);
 
   const copyNumber = () => {
     navigator.clipboard.writeText("01872537867");
@@ -197,6 +284,8 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
       transactionInfo: formData.transactionInfo,
       status: "Processing",
       date: new Date().toISOString(),
+      promoCode: appliedPromo ? appliedPromo.code : undefined,
+      promoDiscount: promoDiscount > 0 ? promoDiscount : undefined,
     };
 
     // Sync to cloud and trigger auto-email
@@ -617,33 +706,113 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
                       <span className="px-3 py-1 rounded-full bg-[var(--bg)] text-[9px] font-bold opacity-40 uppercase tracking-tighter border border-[var(--line)]">
                         {item.quantity} Unit
                       </span>
+                      {((item.originalPrice !== undefined && item.originalPrice !== null && String(item.originalPrice).trim() !== "") || (item.discountPrice !== undefined && item.discountPrice !== null && String(item.discountPrice).trim() !== "")) && (
+                        <span className="px-3 py-1 rounded-full bg-rose-500/10 text-rose-500 text-[9px] font-black uppercase tracking-tighter border border-rose-500/20 animate-fadeIn">
+                          Promo N/A
+                        </span>
+                      )}
                     </div>
                     <p className="text-base font-light tracking-tighter">
-                      {typeof item.price === "number"
-                        ? `৳${item.price * item.quantity}`
-                        : item.quantity > 1
-                          ? `${item.price} (x${item.quantity})`
-                          : item.price}
+                      {typeof item.price === "number" ? (
+                        <span className="flex items-center gap-2">
+                          <span className="text-rose-500 font-bold">৳{item.price * item.quantity}</span>
+                          {item.originalPrice !== undefined && item.originalPrice !== null && String(item.originalPrice).trim() !== "" && !isNaN(Number(item.originalPrice)) && (
+                            <span className="text-xs opacity-30 line-through">
+                              ৳{Number(item.originalPrice) * item.quantity}
+                            </span>
+                          )}
+                        </span>
+                      ) : item.quantity > 1 ? (
+                        `${item.price} (x${item.quantity})`
+                      ) : (
+                        item.price
+                      )}
                     </p>
                   </div>
                 </div>
               ))}
             </div>
 
-            <div className="mt-auto pt-10 space-y-5">
-              <div className={`flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30 ${hasPrebook ? "pb-6 border-b border-[var(--line)]" : ""}`}>
+            {/* Promo Code Input & Management */}
+            <div className="mt-6 pt-6 border-t border-[var(--line)] space-y-4">
+              <div className="flex flex-col gap-1.5">
+                <label className="text-[10px] font-bold uppercase tracking-widest opacity-35 ml-1">
+                  Have a Promo Code?
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    value={promoCodeInput}
+                    onChange={(e) => {
+                      setPromoCodeInput(e.target.value);
+                      setPromoError("");
+                    }}
+                    placeholder="ENTER CODE"
+                    className="flex-1 bg-[var(--bg)] border border-[var(--line)] p-4 rounded-xl text-xs font-mono font-bold tracking-widest outline-none text-[var(--text)] placeholder:opacity-25"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    className="px-6 bg-[var(--text)] text-[var(--bg)] rounded-xl text-[10px] font-bold uppercase tracking-widest hover:opacity-85 active:scale-95 transition-all outline-none"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+              
+              {promoError && (
+                <p className="text-[10px] text-red-500 font-bold tracking-tight ml-1 animate-fadeIn">
+                  <i className="fas fa-exclamation-circle mr-1"></i> {promoError}
+                </p>
+              )}
+              
+              {promoSuccess && (
+                <div className="space-y-1 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10 animate-fadeIn">
+                  <p className="text-[10px] text-emerald-500 font-bold tracking-tight ml-1 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                    {promoSuccess}
+                  </p>
+                  {items.some(item => 
+                    (item.originalPrice !== undefined && item.originalPrice !== null && String(item.originalPrice).trim() !== "") ||
+                    (item.discountPrice !== undefined && item.discountPrice !== null && String(item.discountPrice).trim() !== "")
+                  ) && (
+                    <p className="text-[9px] text-amber-500/90 font-bold tracking-tight ml-1 mt-1 flex items-center gap-1">
+                      <i className="fas fa-info-circle text-[8px]"></i>
+                      Already discounted products are excluded from promo discounts.
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-[var(--line)] space-y-5">
+              <div className={`flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-35 ${hasPrebook ? "pb-6 border-b border-[var(--line)]" : ""}`}>
                 <span>Value</span>
                 <span className="text-[var(--text)]">৳{subtotal}</span>
               </div>
-              {!hasPrebook && (
-                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-30 pb-6 border-b border-[var(--line)]">
-                  <span>Shipment</span>
-                  <span className="text-[var(--text)]">৳{deliveryCharge}</span>
+              
+              {promoDiscount > 0 && (
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest text-emerald-500 animate-fadeIn">
+                  <span>Promo Discount ({appliedPromo?.code})</span>
+                  <span>-৳{promoDiscount}</span>
                 </div>
               )}
-              <div className="pt-6 flex justify-between items-end">
+
+              {!hasPrebook && (
+                <div className="flex justify-between items-center text-[10px] font-bold uppercase tracking-widest opacity-35 pb-6 border-b border-[var(--line)]">
+                  <span>Shipment</span>
+                  {isFreeShippingApplied() ? (
+                    <span className="text-emerald-500 font-black flex items-center gap-1.5 animate-fadeIn">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      FREE SHIPPING
+                    </span>
+                  ) : (
+                    <span className="text-[var(--text)]">৳{deliveryCharge}</span>
+                  )}
+                </div>
+              )}
+              <div className="pt-4 flex justify-between items-end">
                 <div className="flex flex-col">
-                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-30 mb-3">
+                  <span className="text-[9px] font-bold uppercase tracking-[0.3em] opacity-35 mb-3">
                     Total Investment
                   </span>
                   <span className="text-5xl font-light font-serif leading-none tracking-tighter italic">

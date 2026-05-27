@@ -14,6 +14,8 @@ export interface Product {
   outOfStockColors?: string[];
   outOfStockImages?: string[];
   videoUrl?: string;
+  discountPrice?: number | string;
+  originalPrice?: number | string;
 }
 
 export interface Category {
@@ -49,6 +51,19 @@ export interface Order {
     | "Delivered"
     | "Cancelled";
   date: string;
+  promoCode?: string;
+  promoDiscount?: number;
+}
+
+export interface PromoCode {
+  id: string;
+  code: string;
+  type: "percentage" | "fixed_amount";
+  value: number;
+  minPurchase?: number;
+  deliveryOption: "none" | "dhaka" | "outside" | "all";
+  status: "active" | "inactive";
+  createdAt: string;
 }
 
 export interface ChatMessage {

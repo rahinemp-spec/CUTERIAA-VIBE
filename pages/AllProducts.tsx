@@ -4,7 +4,7 @@ import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { Product } from '../types';
 import { sheetApi } from '../services/api';
 import { motion, AnimatePresence } from 'motion/react';
-import { normalizeColors, safeParseJSON } from '../utils/colorUtils';
+import { normalizeColors, safeParseJSON, normalizeProduct } from '../utils/colorUtils';
 
 interface AllProductsProps {
   onAddToCart: (product: Product) => void;
@@ -26,13 +26,7 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
         try {
           const parsed = JSON.parse(savedProducts);
           if (Array.isArray(parsed)) {
-            const formatted = parsed.map(p => ({
-              ...p,
-              images: safeParseJSON(p.images),
-              colors: normalizeColors(p.colors),
-              outOfStockColors: safeParseJSON(p.outOfStockColors),
-              outOfStockImages: safeParseJSON(p.outOfStockImages)
-            }));
+            const formatted = parsed.map(p => normalizeProduct(p)).filter(Boolean);
             setProducts(formatted);
           }
         } catch (e) {}
@@ -42,13 +36,7 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
 
       const cloudProds = await sheetApi.fetchProducts();
       if (cloudProds && Array.isArray(cloudProds)) {
-        const formatted = cloudProds.map((p: any) => ({
-          ...p,
-          images: safeParseJSON(p.images),
-          colors: normalizeColors(p.colors),
-          outOfStockColors: safeParseJSON(p.outOfStockColors),
-          outOfStockImages: safeParseJSON(p.outOfStockImages)
-        }));
+        const formatted = cloudProds.map((p: any) => normalizeProduct(p)).filter(Boolean);
         setProducts(formatted);
       }
 
@@ -133,6 +121,13 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
                       </span>
                     </div>
                   )}
+                  {product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "" && (
+                    <div className="absolute top-4 right-4 z-10">
+                      <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-rose-600 text-white px-2.5 py-1 shadow-lg flex items-center gap-1.5 animate-pulse rounded-xs">
+                        <i className="fas fa-tags text-[7px]" /> SALE
+                      </span>
+                    </div>
+                  )}
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
                     <span className="text-[9px] font-bold uppercase tracking-[0.5em] border border-white py-3 px-6 text-white">Access Details</span>
                   </div>
@@ -141,7 +136,20 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
                 <div className="space-y-3">
                   <div className="flex justify-between items-baseline">
                     <p className="text-[9px] font-bold opacity-20 uppercase tracking-[0.3em]">{product.anime || product.category}</p>
-                    <span className="text-sm font-medium tracking-tight opacity-60">{typeof product.price === 'number' ? `৳${product.price}` : product.price}</span>
+                    {product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "" ? (
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-black tracking-tight text-rose-500">
+                          ৳{product.discountPrice}
+                        </span>
+                        <span className="text-[10px] font-medium tracking-tight opacity-30 line-through">
+                          ৳{product.price}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-sm font-medium tracking-tight opacity-60">
+                        {typeof product.price === 'number' ? `৳${product.price}` : product.price}
+                      </span>
+                    )}
                   </div>
                   <h3 className="text-base font-display tracking-tight uppercase transition-colors">{product.name}</h3>
                 </div>

@@ -15,6 +15,7 @@ function doGet(e) {
     if (action === 'getOrders') return getSheetData('Orders');
     if (action === 'getCategories') return getSheetData('Categories');
     if (action === 'getChats') return getSheetData('Chats');
+    if (action === 'getPromos') return getSheetData('Promos');
     return createResponse({ status: 'online', timestamp: new Date() });
   } catch (error) {
     return createResponse({ error: error.toString() });
@@ -37,6 +38,10 @@ function doPost(e) {
       upsertData('Categories', data, 'id');
     } else if (action === 'deleteCategory') {
       deleteRowById('Categories', data.id, 'id');
+    } else if (action === 'savePromo') {
+      upsertData('Promos', data, 'id');
+    } else if (action === 'deletePromo') {
+      deleteRowById('Promos', data.id, 'id');
     } else if (action === 'addOrder' || action === 'updateOrder') {
       if (action === 'addOrder' && !data.date) {
         data.date = new Date().toISOString();
@@ -59,8 +64,9 @@ function doPost(e) {
 function runSetup() {
   const requiredSheets = {
     'Users': ['id', 'pass', 'role', 'name'],
-    'Products': ['id', 'name', 'price', 'category', 'anime', 'description', 'image', 'images', 'isFeatured', 'isComingSoon', 'color', 'colors', 'outOfStockColors', 'outOfStockImages', 'videoUrl'],
+    'Products': ['id', 'name', 'price', 'category', 'anime', 'description', 'image', 'images', 'isFeatured', 'isComingSoon', 'color', 'colors', 'outOfStockColors', 'outOfStockImages', 'videoUrl', 'discountPrice'],
     'Categories': ['id', 'name'],
+    'Promos': ['id', 'code', 'type', 'value', 'minPurchase', 'deliveryOption', 'status', 'createdAt'],
     'Orders': ['date', 'id', 'customer', 'total', 'status', 'items', 'subtotal', 'deliveryCharge', 'paymentMethod', 'transactionInfo'],
     'Chats': ['id', 'userName', 'userEmail', 'messages', 'lastMessageAt', 'status'],
     'Logs': ['timestamp', 'userId', 'type', 'role']

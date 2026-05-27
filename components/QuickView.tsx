@@ -243,11 +243,27 @@ const QuickView: React.FC<QuickViewProps> = ({
                   <h2 className="text-3xl sm:text-4xl md:text-5xl font-display tracking-tight leading-none uppercase mb-4 sm:mb-6">
                     {product.name}
                   </h2>
-                  <p className="text-2xl sm:text-3xl font-light opacity-90">
-                    {typeof product.price === "number"
-                      ? `৳${product.price}`
-                      : product.price}
-                  </p>
+                  <div className="flex items-baseline gap-4">
+                    {product.discountPrice !== undefined && product.discountPrice !== null && String(product.discountPrice).trim() !== "" ? (
+                      <>
+                        <span className="text-2xl sm:text-3xl font-black text-rose-500 animate-fadeIn">
+                          ৳{product.discountPrice}
+                        </span>
+                        <span className="text-lg sm:text-xl font-light opacity-30 line-through animate-fadeIn">
+                          ৳{product.price}
+                        </span>
+                        <span className="text-[9px] font-black uppercase tracking-[0.2em] bg-rose-600 text-white px-2 py-1 select-none animate-bounce">
+                          SALE
+                        </span>
+                      </>
+                    ) : (
+                      <span className="text-2xl sm:text-3xl font-light opacity-90">
+                        {typeof product.price === "number"
+                          ? `৳${product.price}`
+                          : product.price}
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 <div className="space-y-12">

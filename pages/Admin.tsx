@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Product, Order, ChatSession, Category, ChatMessage } from "../types";
+import { Product, Order, ChatSession, Category, ChatMessage, PromoCode } from "../types";
 import { sheetApi } from "../services/api";
 import Logo from "../components/Logo";
+import { DEFAULT_PROMO_CODES } from "../constants";
 
-import { normalizeColors, safeParseJSON } from "../utils/colorUtils";
+import { normalizeColors, safeParseJSON, normalizeProduct } from "../utils/colorUtils";
 
 type AdminView =
   | "dashboard"
@@ -12,7 +13,8 @@ type AdminView =
   | "categories"
   | "orders"
   | "chats"
-  | "calendar";
+  | "calendar"
+  | "promos";
 
 const parseBoolean = (val: any): boolean => {
   if (typeof val === "boolean") return val;
@@ -64,6 +66,31 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
   const [isAddingCategory, setIsAddingCategory] = useState(false);
 
   const mainFileRef = useRef<HTMLInputElement>(null);
+
+  const [promos, setPromos] = useState<PromoCode[]>([]);
+  const [promoForm, setPromoForm] = useState({
+    code: "",
+    type: "percentage" as "percentage" | "fixed_amount",
+    value: "",
+    minPurchase: "",
+    deliveryOption: "none" as "none" | "dhaka" | "outside" | "all",
+    status: "active" as "active" | "inactive"
+  });
+  const [isAddingPromo, setIsAddingPromo] = useState(false);
+
+  useEffect(() => {
+    const savedPromos = localStorage.getItem("cuteriaa_promo_codes");
+    if (savedPromos) {
+      try {
+        setPromos(JSON.parse(savedPromos));
+      } catch (e) {
+        setPromos(DEFAULT_PROMO_CODES);
+      }
+    } else {
+      setPromos(DEFAULT_PROMO_CODES);
+      localStorage.setItem("cuteriaa_promo_codes", JSON.stringify(DEFAULT_PROMO_CODES));
+    }
+  }, []);
 
   useEffect(() => {
     if (isLoggedIn) {
@@ -134,15 +161,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
       const cloudProducts = await sheetApi.fetchProducts();
       if (cloudProducts && Array.isArray(cloudProducts)) {
         setProducts(
-          cloudProducts.map((p: any) => ({
-            ...p,
-            images: safeParseJSON(p.images),
-            colors: normalizeColors(p.colors),
-            outOfStockColors: safeParseJSON(p.outOfStockColors),
-            outOfStockImages: safeParseJSON(p.outOfStockImages),
-            isFeatured: parseBoolean(p.isFeatured),
-            isComingSoon: parseBoolean(p.isComingSoon),
-          })),
+          cloudProducts.map((p: any) => normalizeProduct(p)).filter(Boolean),
         );
       } else if (cloudProducts?.error) {
         console.error("Products fetch error:", cloudProducts.error);
@@ -188,6 +207,23 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
         );
       } else if (cloudChats?.error) {
         console.error("Chats fetch error:", cloudChats.error);
+      }
+
+      const cloudPromos = await sheetApi.fetchPromos();
+      if (cloudPromos && Array.isArray(cloudPromos)) {
+        const formattedPromos: PromoCode[] = cloudPromos.map((p: any) => ({
+          id: String(p.id),
+          code: String(p.code),
+          type: (p.type || "percentage") as any,
+          value: Number(p.value) || 0,
+          minPurchase: p.minPurchase !== undefined && String(p.minPurchase).trim() !== "" ? Number(p.minPurchase) : undefined,
+          deliveryOption: (p.deliveryOption || "none") as any,
+          status: (p.status || "active") as any,
+          createdAt: p.createdAt ? String(p.createdAt) : new Date().toISOString()
+        }));
+        setPromos(formattedPromos);
+      } else if (cloudPromos?.error) {
+        console.error("Promos fetch error:", cloudPromos.error);
       }
     } catch (err) {
       console.error("Sync loop error:", err);
@@ -281,6 +317,11 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
       price: isNaN(Number(formData.get("price")))
         ? (formData.get("price") as string)
         : Number(formData.get("price")),
+      discountPrice: formData.get("discountPrice")
+        ? (isNaN(Number(formData.get("discountPrice")))
+          ? (formData.get("discountPrice") as string)
+          : Number(formData.get("discountPrice")))
+        : "",
       category: formData.get("category") as string,
       anime: formData.get("category") as string,
       description: formData.get("description") as string,
@@ -381,6 +422,84 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
     } catch (e) {
       alert("Delete Failed: " + (e instanceof Error ? e.message : String(e)));
       loadAllCloudData();
+    }
+  };
+
+  const handleAddPromo = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!promoForm.code.trim()) return;
+
+    const codeUpper = promoForm.code.toUpperCase().replace(/\s/g, "");
+    if (promos.some((p) => p.code === codeUpper)) {
+      alert("A promo code with this name already exists!");
+      return;
+    }
+
+    const valNum = Number(promoForm.value) || 0;
+    const minNum = Number(promoForm.minPurchase) || 0;
+
+    const codeObj: PromoCode = {
+      id: `promo-${Date.now()}`,
+      code: codeUpper,
+      type: promoForm.type,
+      value: valNum,
+      minPurchase: minNum,
+      deliveryOption: promoForm.deliveryOption,
+      status: promoForm.status,
+      createdAt: new Date().toISOString()
+    };
+
+    const updatedPromos = [codeObj, ...promos];
+    setPromos(updatedPromos);
+    localStorage.setItem("cuteriaa_promo_codes", JSON.stringify(updatedPromos));
+
+    // Reset form
+    setPromoForm({
+      code: "",
+      type: "percentage",
+      value: "",
+      minPurchase: "",
+      deliveryOption: "none",
+      status: "active"
+    });
+
+    try {
+      await sheetApi.savePromo(codeObj);
+    } catch (err) {
+      console.error("Failed to sync promo code to cloud:", err);
+    }
+  };
+
+  const handleDeletePromo = async (id: string) => {
+    if (!confirm("Are you sure you want to delete this promo code?")) return;
+    const updatedPromos = promos.filter((p) => p.id !== id);
+    setPromos(updatedPromos);
+    localStorage.setItem("cuteriaa_promo_codes", JSON.stringify(updatedPromos));
+
+    try {
+      await sheetApi.deletePromo(id);
+    } catch (err) {
+      console.error("Failed to delete promo from cloud:", err);
+    }
+  };
+
+  const handleTogglePromoStatus = async (id: string) => {
+    const targetPromo = promos.find((p) => p.id === id);
+    if (!targetPromo) return;
+
+    const updatedStatus = targetPromo.status === "active" ? ("inactive" as const) : ("active" as const);
+    const updatedPromo = { ...targetPromo, status: updatedStatus };
+
+    const updatedPromos = promos.map((p) =>
+      p.id === id ? updatedPromo : p
+    );
+    setPromos(updatedPromos);
+    localStorage.setItem("cuteriaa_promo_codes", JSON.stringify(updatedPromos));
+
+    try {
+      await sheetApi.savePromo(updatedPromo);
+    } catch (err) {
+      console.error("Failed to update promo status on cloud:", err);
     }
   };
 
@@ -536,6 +655,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
             { id: "calendar", label: "Schedule", icon: "fa-calendar-alt" },
             { id: "inventory", label: "Vault", icon: "fa-layer-group" },
             { id: "categories", label: "Lines", icon: "fa-fingerprint" },
+            { id: "promos", label: "Promo Codes", icon: "fa-ticket-alt" },
             { id: "orders", label: "Parcels", icon: "fa-box" },
             { id: "chats", label: "Intel", icon: "fa-comment-dots" },
           ].map((view) => (
@@ -835,7 +955,15 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                       </div>
                     </div>
                     <p className="text-xs font-black mt-1 text-zinc-300">
-                      {typeof p.price === "number" ? `৳${p.price}` : p.price}
+                      {p.discountPrice !== undefined && p.discountPrice !== null && String(p.discountPrice).trim() !== "" ? (
+                        <span className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-rose-500 font-black">৳{p.discountPrice}</span>
+                          <span className="text-zinc-500 line-through text-[10px] font-normal">৳{p.price}</span>
+                          <span className="text-[7px] bg-rose-950 text-rose-400 border border-rose-500/20 px-1 py-0.2 uppercase font-extrabold">SALE</span>
+                        </span>
+                      ) : (
+                        typeof p.price === "number" ? `৳${p.price}` : p.price
+                      )}
                     </p>
                     <div className="flex flex-wrap gap-2 mt-4">
                       <p className="text-[8px] font-black uppercase bg-zinc-100 text-zinc-900 px-2 py-0.5 inline-block">
@@ -910,6 +1038,217 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                   </button>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeView === "promos" && (
+          <div className="max-w-5xl space-y-12 animate-fadeIn text-zinc-300">
+            <h1 className="text-5xl font-black uppercase italic border-b-4 border-zinc-100 pb-6 text-white">
+              Promo Codes
+            </h1>
+
+            {/* Create Promo Code form */}
+            <form onSubmit={handleAddPromo} className="bg-zinc-900 border-4 border-zinc-800 p-8 shadow-[10px_10px_0px_0px_rgba(0,0,0,0.3)] space-y-6">
+              <h3 className="text-xs font-black uppercase tracking-widest text-zinc-500">
+                Generate Promo Code Campaign
+              </h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Promo Code Name
+                  </label>
+                  <input
+                    required
+                    value={promoForm.code}
+                    onChange={(e) => setPromoForm({ ...promoForm, code: e.target.value })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors uppercase"
+                    placeholder="e.g. FLASH20"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Discount Type
+                  </label>
+                  <select
+                    value={promoForm.type}
+                    onChange={(e) => setPromoForm({ ...promoForm, type: e.target.value as any })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors"
+                  >
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="fixed_amount">Fixed Amount (BDT)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Discount Value ({promoForm.type === "percentage" ? "%" : "BDT"}) {promoForm.deliveryOption !== "none" ? "(Optional)" : ""}
+                  </label>
+                  <input
+                    required={promoForm.deliveryOption === "none"}
+                    type="number"
+                    min="0"
+                    value={promoForm.value}
+                    onChange={(e) => setPromoForm({ ...promoForm, value: e.target.value })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors"
+                    placeholder={promoForm.deliveryOption !== "none" ? "e.g. 0 (Optional)" : "e.g. 15"}
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Minimum Purchase (BDT) (Optional)
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    value={promoForm.minPurchase}
+                    onChange={(e) => setPromoForm({ ...promoForm, minPurchase: e.target.value })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors"
+                    placeholder="e.g. 500"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Free Shipping Delivery
+                  </label>
+                  <select
+                    value={promoForm.deliveryOption}
+                    onChange={(e) => setPromoForm({ ...promoForm, deliveryOption: e.target.value as any })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors"
+                  >
+                    <option value="none">Apply Standard Charges (None)</option>
+                    <option value="dhaka">Free Delivery Inside Dhaka Only</option>
+                    <option value="outside">Free Delivery Outside Dhaka Only</option>
+                    <option value="all">Free Delivery Nationwide (Everywhere)</option>
+                  </select>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                    Campaign Status
+                  </label>
+                  <select
+                    value={promoForm.status}
+                    onChange={(e) => setPromoForm({ ...promoForm, status: e.target.value as any })}
+                    className="w-full border-2 border-zinc-800 bg-zinc-950 p-4 text-xs font-bold outline-none text-white focus:border-zinc-100 transition-colors"
+                  >
+                    <option value="active">Active & Applyable</option>
+                    <option value="inactive">Inactive / Paused</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-4">
+                <button
+                  type="submit"
+                  className="bg-zinc-100 text-zinc-900 px-10 py-4 font-black uppercase text-[10px] flex items-center gap-2 hover:bg-white active:scale-95 transition-all outline-none"
+                >
+                  <i className="fas fa-plus"></i> Generate Campaign Code
+                </button>
+              </div>
+            </form>
+
+            {/* Code Registry list */}
+            <div className="space-y-6">
+              <h2 className="text-xl font-bold uppercase tracking-widest text-zinc-300">
+                Active Code Registry
+              </h2>
+              
+              {promos.length === 0 ? (
+                <div className="text-center py-12 bg-zinc-900 border-2 border-dashed border-zinc-800 rounded-3xl opacity-40">
+                  <i className="fas fa-ticket-alt text-3xl mb-4"></i>
+                  <p className="text-xs uppercase tracking-[0.2em] font-bold">No campaign promo codes created</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  {promos.map((p) => (
+                    <div
+                      key={p.id}
+                      className="bg-zinc-900 border-2 border-zinc-800 p-6 rounded-3xl hover:shadow-[5px_5px_0px_0px_rgba(255,255,255,0.05)] transition-all relative overflow-hidden group"
+                    >
+                      {/* Side color accent based on status */}
+                      <div className={`absolute top-0 bottom-0 left-0 w-2 ${p.status === "active" ? "bg-green-500" : "bg-zinc-600"}`} />
+                      
+                      <div className="pl-4 flex justify-between items-start">
+                        <div className="space-y-2">
+                          <div className="flex items-center gap-3 flex-wrap">
+                            <span className="font-mono text-lg font-black tracking-wider text-white bg-zinc-950 px-3 py-1 border border-zinc-800 rounded-lg">
+                              {p.code}
+                            </span>
+                            <span className={`text-[8px] font-black uppercase px-2 py-0.5 rounded-full ${p.status === "active" ? "bg-green-500/10 text-green-400 border border-green-500/20" : "bg-zinc-800 text-zinc-500"}`}>
+                              {p.status}
+                            </span>
+                          </div>
+
+                          <div className="space-y-1 pt-2">
+                            <p className="text-xs text-zinc-300">
+                              <span className="font-bold uppercase text-[10px] tracking-wide text-zinc-500 mr-2">Benefit:</span>
+                              {p.value && p.value > 0 ? (
+                                p.type === "percentage" ? (
+                                  <span className="text-green-400 font-extrabold">{p.value}% Extra Discount</span>
+                                ) : (
+                                  <span className="text-green-400 font-extrabold">{p.value} BDT Flat Off</span>
+                                )
+                              ) : (
+                                <span className="text-zinc-500 italic">No direct discount (Free Shipping Only)</span>
+                              )}
+                            </p>
+                            
+                            <p className="text-xs text-zinc-300">
+                              <span className="font-bold uppercase text-[10px] tracking-wide text-zinc-500 mr-2">Shipping:</span>
+                              {p.deliveryOption === "all" && (
+                                <span className="text-cyan-400 font-bold">Free Nationwide Delivery</span>
+                              )}
+                              {p.deliveryOption === "dhaka" && (
+                                <span className="text-cyan-400 font-bold">Free Delivery Inside Dhaka</span>
+                              )}
+                              {p.deliveryOption === "outside" && (
+                                <span className="text-cyan-400 font-bold">Free Delivery Outside Dhaka</span>
+                              )}
+                              {p.deliveryOption === "none" && (
+                                <span className="text-zinc-500">Standard Delivery Fees</span>
+                              )}
+                            </p>
+
+                            <p className="text-xs text-zinc-500">
+                              <span className="font-bold uppercase text-[10px] tracking-wide text-zinc-500 mr-2">Rule:</span>
+                              {p.minPurchase && p.minPurchase > 0 ? (
+                                <span>Valid on orders above ৳{p.minPurchase}</span>
+                              ) : (
+                                <span>No minimum purchase required</span>
+                              )}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <button
+                            type="button"
+                            onClick={() => handleTogglePromoStatus(p.id)}
+                            className="bg-zinc-800 text-zinc-200 hover:text-white px-3 py-2 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors outline-none"
+                            title="Toggle status"
+                          >
+                            {p.status === "active" ? "Pause" : "Activate"}
+                          </button>
+                          
+                          <button
+                            type="button"
+                            onClick={() => handleDeletePromo(p.id)}
+                            className="text-red-500/70 hover:text-red-500 hover:scale-110 transition-transform p-2 bg-zinc-950 hover:bg-zinc-800 border border-zinc-800 rounded-xl outline-none"
+                            title="Delete campaign"
+                          >
+                            <i className="fas fa-trash-can"></i>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -1283,7 +1622,7 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
               </button>
             </div>
             <form onSubmit={handleSaveProduct} className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
                     Title
@@ -1297,14 +1636,26 @@ const Admin: React.FC<{ onRefreshProducts?: () => void }> = ({
                 </div>
                 <div className="space-y-2">
                   <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
-                    Price (BDT) / Prebook
+                    Regular Price (BDT) / Prebook
                   </label>
                   <input
                     name="price"
                     type="text"
                     defaultValue={editingProduct?.price}
                     required
-                    placeholder="Amount or 'Prebook now'"
+                    placeholder="e.g. 1200 or Prebook"
+                    className="w-full border-2 border-zinc-800 p-4 text-xs font-bold outline-none bg-zinc-950 text-white focus:bg-zinc-800 focus:border-zinc-100 transition-all"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">
+                    Discounted Price (BDT) (Optional)
+                  </label>
+                  <input
+                    name="discountPrice"
+                    type="text"
+                    defaultValue={editingProduct?.discountPrice}
+                    placeholder="Leave blank if no discount"
                     className="w-full border-2 border-zinc-800 p-4 text-xs font-bold outline-none bg-zinc-950 text-white focus:bg-zinc-800 focus:border-zinc-100 transition-all"
                   />
                 </div>

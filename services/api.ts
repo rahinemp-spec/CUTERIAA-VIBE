@@ -1,10 +1,10 @@
 
 /**
  * CUTERIAA - PRO CLOUD SYNC SERVICE
- * Updated Endpoint URL: AKfycbzUPm0ybw1iaRk2nchXaUwlxH5ZEy6-QTZ0GPsZ684cbgYiy5eAnSNRep4DHDD-2yeF
+ * Updated Endpoint URL: AKfycby5kFAvtowlzcWZJedExJOm2Qpdx_-D1LV59H1xMuNtOBxLCw0tf4J1pLuDhS6Ug-SX
  */
 
-const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbzUPm0ybw1iaRk2nchXaUwlxH5ZEy6-QTZ0GPsZ684cbgYiy5eAnSNRep4DHDD-2yeF/exec';
+const WEB_APP_URL = 'https://script.google.com/macros/s/AKfycby5kFAvtowlzcWZJedExJOm2Qpdx_-D1LV59H1xMuNtOBxLCw0tf4J1pLuDhS6Ug-SX/exec';
 
 async function cloudRequest(action: string, data?: any) {
   try {
@@ -134,6 +134,27 @@ export const sheetApi = {
 
   async syncChat(session: any) {
     return await cloudRequest('saveChat', session);
+  },
+
+  async fetchPromos() {
+    const data = await cloudRequest('getPromos');
+    if (data && Array.isArray(data)) {
+      try {
+        localStorage.setItem('cuteriaa_promo_codes', JSON.stringify(data));
+      } catch (e) {
+        console.warn('Failed to cache promos to localStorage:', e);
+      }
+      return data;
+    }
+    return null;
+  },
+
+  async savePromo(promo: any) {
+    return await cloudRequest('savePromo', promo);
+  },
+
+  async deletePromo(id: string) {
+    return await cloudRequest('deletePromo', { id });
   },
 
   async runCloudSetup() {
