@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PRODUCTS as INITIAL_PRODUCTS } from '../constants';
 import { Product } from '../types';
 import { sheetApi } from '../services/api';
@@ -12,6 +13,7 @@ interface AllProductsProps {
 }
 
 const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) => {
+  const navigate = useNavigate();
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<string[]>(['All']);
   const [filter, setFilter] = useState('All');
@@ -104,7 +106,7 @@ const AllProducts: React.FC<AllProductsProps> = ({ onAddToCart, onQuickView }) =
                 exit={{ opacity: 0, scale: 0.9 }}
                 transition={{ duration: 0.4 }}
                 className="group cursor-pointer"
-                onClick={() => onQuickView(product)}
+                onClick={() => navigate(`/product/${product.id}`)}
               >
                 <div className="relative aspect-[3/4] overflow-hidden bg-[var(--card-bg)] mb-8">
                   {product.image && (

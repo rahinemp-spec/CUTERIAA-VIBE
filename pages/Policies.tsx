@@ -10,6 +10,10 @@ interface PoliciesProps {
 const Policies: React.FC<PoliciesProps> = ({ initialType }) => {
   const [activePolicy, setActivePolicy] = React.useState<PolicyType>(initialType);
 
+  React.useEffect(() => {
+    setActivePolicy(initialType);
+  }, [initialType]);
+
   const sidebarItems: { id: PolicyType; label: string; icon: string }[] = [
     { id: 'shipping', label: 'Shipping & Logistics', icon: 'fa-truck-fast' },
     { id: 'returns', label: 'Returns & Refunds', icon: 'fa-rotate-left' },

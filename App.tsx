@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Footer from './components/Footer';
 import Cart from './components/Cart';
@@ -13,6 +14,7 @@ import Tracking from './pages/Tracking';
 import Admin from './pages/Admin';
 import Policies, { PolicyType } from './pages/Policies';
 import ContactUs from './pages/ContactUs';
+import ProductDetail from './pages/ProductDetail';
 import { Product, CartItem } from './types';
 import { PRODUCTS as FALLBACK_PRODUCTS } from './constants';
 import { sheetApi } from './services/api';
@@ -29,11 +31,40 @@ const parseBoolean = (val: any): boolean => {
 };
 
 export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     const saved = localStorage.getItem('cuteriaa-theme');
     return (saved as 'dark' | 'light') || 'dark';
   });
-  const [activeTab, setActiveTab] = useState('home');
+
+  const getActiveTabFromPath = (path: string) => {
+    if (path === '/') return 'home';
+    if (path === '/catalog' || path.startsWith('/product')) return 'all-products';
+    if (path === '/custom') return 'custom';
+    if (path === '/tracking') return 'tracking';
+    if (path === '/admin') return 'admin';
+    if (path === '/policies') return 'policies';
+    if (path === '/contact') return 'contact';
+    return 'home';
+  };
+
+  const activeTab = getActiveTabFromPath(location.pathname);
+
+  const handleTabChange = (tabId: string) => {
+    if (tabId === 'home') navigate('/');
+    else if (tabId === 'all-products') navigate('/catalog');
+    else if (tabId === 'custom') navigate('/custom');
+    else if (tabId === 'tracking') navigate('/tracking');
+    else if (tabId === 'admin') navigate('/admin');
+    else if (tabId === 'policies') navigate('/policies');
+    else if (tabId === 'contact') navigate('/contact');
+    else if (tabId === 'cart') {
+      setIsCartOpen(true);
+    }
+  };
+
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -106,8 +137,7 @@ export default function App() {
   };
 
   const handleOpenQuickView = (product: Product) => {
-    setSelectedProduct(product);
-    setIsQuickViewOpen(true);
+    navigate(`/product/${product.id}`);
   };
 
   const handleRemoveFromCart = (uniqueKey: string) => {
@@ -128,53 +158,12 @@ export default function App() {
     setLastOrderId(orderId);
     setCartItems([]);
     setIsCheckoutOpen(false);
-    setActiveTab('tracking');
+    navigate('/tracking');
   };
 
   const handlePolicyNavigation = (type: PolicyType) => {
     setSelectedPolicy(type);
-    setActiveTab('policies');
-  };
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'home':
-        return (
-          <Home 
-            products={cloudProducts}
-            onAddToCart={handleOpenQuickView} 
-            onQuickView={handleOpenQuickView}
-            onExploreProducts={() => setActiveTab('all-products')}
-            onCustomDesign={() => setActiveTab('custom')}
-          />
-        );
-      case 'all-products':
-        return <AllProducts onAddToCart={handleOpenQuickView} onQuickView={handleOpenQuickView} />;
-      case 'custom':
-        return <CustomTshirts onAddToCart={(p) => handleAddToCart(p)} />;
-      case 'tracking':
-        return <Tracking initialOrderId={lastOrderId} />;
-      case 'admin':
-        return <Admin onRefreshProducts={loadData} />;
-      case 'policies':
-        return <Policies initialType={selectedPolicy} />;
-      case 'contact':
-        return <ContactUs />;
-      case 'cart':
-        setIsCartOpen(true);
-        setActiveTab('home');
-        return null;
-      default:
-        return (
-          <Home 
-            products={cloudProducts}
-            onAddToCart={handleOpenQuickView} 
-            onQuickView={handleOpenQuickView} 
-            onExploreProducts={() => setActiveTab('all-products')} 
-            onCustomDesign={() => setActiveTab('custom')} 
-          />
-        );
-    }
+    navigate('/policies');
   };
 
   return (
@@ -183,13 +172,16 @@ export default function App() {
         <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#050508] transition-opacity duration-500">
           <div className="flex flex-col items-center">
             {/* Center Logo Circle */}
-            <div className="relative flex items-center justify-center w-40 h-40 md:w-52 md:h-52 rounded-full mb-8 border border-indigo-500/10 bg-indigo-500/5 shadow-[0_0_60px_rgba(99,102,241,0.15)]">
-              <div className="absolute inset-0 rounded-full bg-indigo-500/5 animate-pulse"></div>
-              <div className="absolute inset-2 rounded-full border border-purple-500/20"></div>
-              <h1 className="text-xl md:text-2xl font-display font-black tracking-[0.15em] uppercase text-indigo-400 leading-tight text-center relative z-10 drop-shadow-[0_0_15px_rgba(139,92,246,0.8)]">
-                CUTERIAA<br />
-                <span className="text-purple-400 text-lg md:text-xl drop-shadow-[0_0_15px_rgba(192,132,252,0.8)]">VIBE</span>
-              </h1>
+            <div className="relative flex items-center justify-center w-40 h-40 md:w-52 md:h-52 rounded-full mb-8 border border-zinc-800/80 bg-zinc-950 shadow-[0_0_50px_rgba(255,255,255,0.05)] overflow-hidden">
+              <div className="absolute inset-0 rounded-full bg-white/[0.02] animate-pulse"></div>
+              <div className="absolute inset-3 rounded-full border border-white/5 overflow-hidden bg-black/40 flex items-center justify-center">
+                <img
+                  src="https://i.pinimg.com/736x/9b/e2/7c/9be27c432d206932eb1db98182db3708.jpg"
+                  alt="Cuteriaa Loading Logo"
+                  referrerPolicy="no-referrer"
+                  className="w-full h-full object-cover grayscale opacity-80"
+                />
+              </div>
             </div>
             
             {/* Three Dots Animation */}
@@ -207,20 +199,60 @@ export default function App() {
       
       <Navbar 
         activeTab={activeTab === 'cart' ? 'home' : (activeTab === 'admin' ? 'admin' : activeTab)} 
-        setActiveTab={setActiveTab} 
+        setActiveTab={handleTabChange} 
         cartCount={cartItems.reduce((a, b) => a + b.quantity, 0)} 
         theme={theme}
         onToggleTheme={toggleTheme}
       />
       
       <main className="flex-grow">
-        {renderContent()}
+        <Routes>
+          <Route path="/" element={
+            <Home 
+              products={cloudProducts}
+              onAddToCart={handleOpenQuickView} 
+              onQuickView={handleOpenQuickView}
+              onExploreProducts={() => navigate('/catalog')}
+              onCustomDesign={() => navigate('/custom')}
+            />
+          } />
+          <Route path="/catalog" element={
+            <AllProducts onAddToCart={handleOpenQuickView} onQuickView={handleOpenQuickView} />
+          } />
+          <Route path="/product/:id" element={
+            <ProductDetail onAddToCart={handleAddToCart} />
+          } />
+          <Route path="/custom" element={
+            <CustomTshirts onAddToCart={(p) => handleAddToCart(p)} />
+          } />
+          <Route path="/tracking" element={
+            <Tracking initialOrderId={lastOrderId} />
+          } />
+          <Route path="/admin" element={
+            <Admin onRefreshProducts={loadData} />
+          } />
+          <Route path="/policies" element={
+            <Policies initialType={selectedPolicy} />
+          } />
+          <Route path="/contact" element={
+            <ContactUs />
+          } />
+          <Route path="*" element={
+            <Home 
+              products={cloudProducts}
+              onAddToCart={handleOpenQuickView} 
+              onQuickView={handleOpenQuickView} 
+              onExploreProducts={() => navigate('/catalog')} 
+              onCustomDesign={() => navigate('/custom')} 
+            />
+          } />
+        </Routes>
       </main>
 
       <Footer 
-        onAdminClick={() => setActiveTab('admin')} 
+        onAdminClick={() => navigate('/admin')} 
         onPolicyClick={handlePolicyNavigation}
-        onNavClick={setActiveTab}
+        onNavClick={handleTabChange}
       />
 
       <Cart 
