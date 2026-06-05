@@ -93,6 +93,7 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
 
   const [copied, setCopied] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [selectedMobileProvider, setSelectedMobileProvider] = useState<string>("bkash");
 
   const [promoCodeInput, setPromoCodeInput] = useState("");
   const [appliedPromo, setAppliedPromo] = useState<PromoCode | null>(null);
@@ -263,12 +264,6 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
   const promoDiscount = getPromoDiscountAmount();
   const total = Math.max(0, subtotal + deliveryCharge - promoDiscount);
 
-  const copyNumber = () => {
-    navigator.clipboard.writeText("01872537867");
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmitting(true);
@@ -299,15 +294,29 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
 
     const orderId = `CTR-${Math.random().toString(36).substr(2, 9).toUpperCase()}`;
 
+    const finalPaymentMethod = formData.paymentMethod === "mobile" && selectedMobileProvider
+      ? `Mobile Banking (${selectedMobileProvider.toUpperCase()})`
+      : formData.paymentMethod === "cod"
+        ? "Cash on Delivery"
+        : formData.paymentMethod;
+
+    const finalTransactionInfo = formData.paymentMethod === "mobile" && selectedMobileProvider
+      ? `[${selectedMobileProvider.toUpperCase()}] ${formData.transactionInfo}`
+      : formData.transactionInfo;
+
     const newOrder: Order = {
       id: orderId,
-      customer: { ...formData },
+      customer: { 
+        ...formData, 
+        paymentMethod: finalPaymentMethod,
+        transactionInfo: finalTransactionInfo
+      },
       items,
       subtotal,
       deliveryCharge,
       total,
-      paymentMethod: formData.paymentMethod,
-      transactionInfo: formData.transactionInfo,
+      paymentMethod: finalPaymentMethod,
+      transactionInfo: finalTransactionInfo,
       status: "Processing",
       date: new Date().toISOString(),
       promoCode: appliedPromo ? appliedPromo.code : undefined,
@@ -615,48 +624,115 @@ const Checkout: React.FC<CheckoutProps> = ({ items, onClose, onComplete }) => {
 
               {formData.paymentMethod === "mobile" && (
                 <div className="p-10 bg-[var(--card-bg)] rounded-[40px] border border-[var(--line)] animate-fadeIn space-y-8">
-                  <div className="flex flex-col md:flex-row justify-between items-start lg:items-center gap-6 md:gap-8">
-                    <div>
-                      <p className="text-[8px] sm:text-[9px] font-bold uppercase opacity-30 mb-2 sm:mb-3 tracking-widest flex items-center gap-2">
-                        <span className="w-1 h-1 rounded-full bg-current"></span>
-                        Send Money Personal
-                      </p>
-                      <p className="text-3xl sm:text-4xl md:text-5xl font-light tracking-tighter font-serif leading-none">
-                        01872537867
+                  {/* Provider Selection First */}
+                  <div>
+                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-40 mb-4 ml-1 block">
+                      Choose Mobile Banking Wallet
+                    </label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      {[
+                        {
+                          id: "bkash",
+                          name: "bKash",
+                          logo: "https://download.logo.wine/logo/BKash/BKash-Logo.wine.png",
+                        },
+                        {
+                          id: "nagad",
+                          name: "Nagad",
+                          logo: "https://download.logo.wine/logo/Nagad/Nagad-Logo.wine.png",
+                        },
+                        {
+                          id: "upay",
+                          name: "Upay",
+                          logo: "https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcRCqQuOUL0uGlWx6LWT0wSoAervlyRVpzodww&s",
+                        },
+                        {
+                          id: "rocket",
+                          name: "Rocket",
+                          logo: "https://i.pinimg.com/736x/23/c1/1d/23c11ddf23f2a7094bcc7e87d233823c.jpg",
+                        }
+                      ].map((provider) => {
+                        const isSelected = selectedMobileProvider === provider.id;
+                        return (
+                          <div
+                            key={provider.id}
+                            onClick={() => setSelectedMobileProvider(provider.id)}
+                            className={`cursor-pointer p-4 rounded-2xl border transition-all duration-300 flex flex-col items-center justify-center text-center gap-3 select-none hover:scale-[1.02] active:scale-95 ${
+                              isSelected
+                                ? `border-[var(--text)] bg-[var(--text)] text-[var(--bg)] shadow-md`
+                                : "border-[var(--line)] bg-[var(--bg)]/50 hover:border-zinc-500"
+                            }`}
+                          >
+                            <div className="w-12 h-12 rounded-xl overflow-hidden flex items-center justify-center bg-zinc-950 p-1 border border-zinc-800">
+                              <img
+                                src={provider.logo}
+                                alt={provider.name}
+                                referrerPolicy="no-referrer"
+                                className="w-full h-full object-contain filter brightness-95"
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                  const fallbackSpan = e.currentTarget.parentElement?.querySelector(".fallback-initials");
+                                  if (fallbackSpan) fallbackSpan.classList.remove("hidden");
+                                }}
+                              />
+                              <span className="fallback-initials hidden text-xs font-black uppercase tracking-wider text-zinc-450">
+                                {provider.name.substring(0, 2)}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-black uppercase tracking-[0.2em]">
+                              {provider.name}
+                            </span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Payment Details Container */}
+                  <div className="pt-6 border-t border-[var(--line)] space-y-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-6">
+                      <div>
+                        <p className="text-[9px] font-black uppercase opacity-40 mb-2 tracking-widest flex items-center gap-2">
+                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                          Send Money (Personal) to
+                        </p>
+                        <p className="text-3xl sm:text-4xl font-light tracking-tighter leading-none text-rose-500 font-serif">
+                          01872537867
+                        </p>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          navigator.clipboard.writeText("01872537867");
+                          setCopied(true);
+                          setTimeout(() => setCopied(false), 2000);
+                        }}
+                        className="w-full sm:w-auto px-8 py-3.5 bg-[var(--text)] text-[var(--bg)] rounded-xl text-[9px] font-black uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-md active:scale-95 cursor-pointer"
+                      >
+                        {copied ? "Copied" : "Copy Account Number"}
+                      </button>
+                    </div>
+
+                    <div className="pt-6 border-t border-[var(--line)] flex flex-col gap-3">
+                      <label className="text-[10px] font-bold uppercase tracking-widest opacity-35 ml-1">
+                        Confirmation Reference
+                      </label>
+                      <input
+                        required
+                        value={formData.transactionInfo}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            transactionInfo: e.target.value,
+                          })
+                        }
+                        className="w-full bg-[var(--bg)] border border-[var(--line)] focus:border-[var(--accent)] p-5 rounded-2xl text-sm font-medium outline-none transition-all shadow-inner text-[var(--text)] placeholder:opacity-20 placeholder:text-zinc-600"
+                        placeholder="Enter Transaction ID or sender phone number"
+                      />
+                      <p className="text-[8px] opacity-30 italic">
+                        Please send money via your wallet first, then provide the Transaction ID or your sender phone number above.
                       </p>
                     </div>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        navigator.clipboard.writeText("01872537867");
-                        setCopied(true);
-                        setTimeout(() => setCopied(false), 2000);
-                      }}
-                      className="w-full md:w-auto px-10 py-3 sm:py-4 bg-[var(--text)] text-[var(--bg)] rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-[0.2em] hover:opacity-90 transition-all shadow-lg active:scale-95"
-                    >
-                      {copied ? "Copied" : "Copy Number"}
-                    </button>
-                  </div>
-                  <div className="pt-8 border-t border-[var(--line)] flex flex-col gap-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest opacity-30 ml-1">
-                      Confirmation Reference
-                    </label>
-                    <input
-                      required
-                      value={formData.transactionInfo}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          transactionInfo: e.target.value,
-                        })
-                      }
-                      className="w-full bg-[var(--bg)] border border-[var(--line)] focus:border-[var(--accent)] p-5 rounded-2xl text-sm font-medium outline-none transition-all shadow-inner text-[var(--text)]"
-                      placeholder="Enter Transaction ID or Phone Number"
-                    />
-                    <p className="text-[8px] opacity-30 italic">
-                      Please complete the transfer before submitting for
-                      verification.
-                    </p>
                   </div>
                 </div>
               )}
